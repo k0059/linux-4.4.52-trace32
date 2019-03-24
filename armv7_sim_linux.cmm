@@ -1,0 +1,222 @@
+; --------------------------------------------------------------------------------
+; @Title: Linux Demo for TRACE32 RTOS Debugger on the TRACE32 Simulator (Cortex-A)
+; @Description: 
+;   This batchfile demonstrates the use of the RTOS Debugger for Linux.
+;   Linux runs here in the TRACE32 Simulator for Cortex-A5/A8/A9/A15.
+;   The demo is composed of:
+;   - DTB file
+;   - Ramdisk
+;   - vmlinux
+;   - DLL for Hardware simulation (timers, RTC, ...)
+;   For the console: DCC is used (see terminal configuration)
+;   Usage:
+;   Do armv7_sim_linux.cmm <cpu_name>
+;        eg : Do armv7_sim_linux.cmm CortexA9
+;   if no parameter is specified, the script will select per default CortexA5
+; @Keywords: awareness, RTOS, Simulator, Cortex-A
+; @Author: ydaoud
+; @Board: TRACE32 Simulator
+; @Chip: CORTEX-A5 CORTEX-A8 CORTEX-A9 CORTEX-A15
+; @Copyright: (C) 1989-2017 Lauterbach GmbH, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; $Id: armv7_sim_linux.cmm 11408 2017-09-25 08:14:40Z ydaoud $
+
+; check prerequisites
+IF VERSION.BUILD.BASE()<85346.
+(
+  PRINT %ERROR "Please use more recent Software! Contact support@lauterbach.com."
+  ENDDO
+)
+
+ENTRY &cpu_selection
+
+IF "&cpu_selection"==""
+  &cpu_selection="cortexA5"
+
+RESet
+SYStem.Reset
+;WinCLEAR
+SIM.UNLOAD
+SYStem.CPU &cpu_selection
+SETUP.IMASKASM ON            ; lock interrupts while single stepping
+SYStem.Option MMUSPACES ON   ; enable space ids to virtual addresses
+
+IF !OS.FILE(ramdisk.ext2)&&!OS.FILE(vmlinux_v7)
+(
+    IF OS.FILE(bin.zip)
+    (
+       DIALOG
+       (
+            HEADER "Extract Files.."
+            POS 0. 0. 40. 5.
+            BOX ""
+            POS 1. 1. 35. 1.
+            TEXT "Please extract bin.zip and then press ""Continue"""
+            POS 10. 3. 10. 1. 
+            DEFBUTTON "Continue"
+            (
+                CONTinue
+            )
+            POS 21. 3. 10. 1
+            DEFBUTTON "Abort"
+            (
+                DIALOG.END
+                ENDDO
+            )
+        )
+STOP
+
+done:
+DIALOG.END  
+    )
+)
+
+PRINT "Load a DLL for peripheral simulation"
+; usage parameters: <base address> <rtc_port> <timer_port>
+
+IF OS.NAME()=="Linux"
+(
+  IF SOFTWARE.64BIT()
+    SIM.LOAD ~~~~/libvirtual_hardware.so 0xFF000000 3. 0.
+  ELSE
+    SIM.LOAD ~~~~/libvirtual_hardware_32.so 0xFF000000 3. 0.
+)
+ELSE IF OS.NAME()=="Windows"
+(
+  IF SOFTWARE.64BIT()
+    SIM.LOAD ~~~~/virtual_hardware.dll 0xFF000000 3. 0.
+)
+
+SYStem.Up
+TrOnchip.Set IRQ OFF
+
+; Enable the MMU and Cache simulation in TRACE32 which is disabled by default
+SIM.CACHE.ON
+
+PRINT "Load the Linux code"
+Data.LOAD.ELF ~~~~/out/vmlinux 0x80008000-0xC0008000 /NoSYMBOL
+PRINT "Load dtb"
+Data.LOAD.binary ~~~~/trace32_simulator.dtb 0xAFF00000
+PRINT "Load ramdisk"
+Data.LOAD.binary ~~~~/ramdisk.ext2 0xA0000000 /noclear 
+
+PRINT "Configure CPU Registers Values"
+Register.RESet
+Register.Set r1 4576.      // this is machine number located in arch/arm/tools/mach-types
+Register.Set r2 0xAFF00000
+Register.Set PC 0x80008000 //Set PC on start address of image
+
+PRINT "Configure ReadOnly Registers Values"
+
+IF CONVert.TOLOWER("&cpu_selection")=="cortexa15"
+(
+  Data.Set C15:0x0 %LE %LONG 412FC0F2                    ; MIDR
+  Data.Set C15:0x100 %LE %LONG 0x8444C004                ; CTR 
+  Data.Set C15:0x400 %LE %LONG 412FC0F2                  ; MIDR2
+  Data.Set C15:0x700 %LE %LONG 412FC0F2                  ; MIDR3
+  Data.Set C15:0x20 %LE %LONG  0x02101110                ; ISAR0
+  Data.Set C15:0x120 %LE %LONG 0x13112111                ; ISAR1
+  Data.Set C15:0x220 %LE %LONG 0x21232041                ; ISAR2 
+  Data.Set C15:0x320 %LE %LONG 0x11112131                ; ISAR3
+  Data.Set C15:0x420 %LE %LONG 0x10011142                ; ISAR4
+  Data.Set C15:0x410 %LE %LONG 0x10201105                ; MMFR0
+  Data.Set C15:0x510 %LE %LONG 0x20000000                ; MMFR1
+  Data.Set C15:0x610 %LE %LONG 0x01240000                ; MMFR2
+  Data.Set C15:0x710 %LE %LONG 0x02102211                ; MMFR3
+)
+
+IF CONVert.TOLOWER("&cpu_selection")=="cortexa9"
+(
+  Data.Set C15:0x101 %LE %LONG 0x41                      ; ACTLR
+  Data.Set C15:0x20  %LE %LONG 0x00101111                ; ISAR0
+  Data.Set C15:0x120 %LE %LONG 0x13112111                ; ISAR1
+  Data.Set C15:0x220 %LE %LONG 0x21232041                ; ISAR2 
+  Data.Set C15:0x320 %LE %LONG 0x11112131                ; ISAR3
+  Data.Set C15:0x420 %LE %LONG 0x00011142                ; ISAR4
+  Data.Set C15:0x100 %LE %LONG 0x83338003                ; CTR 
+  Data.Set C15:0x410 %LE %LONG 0x00100103                ; MMFR0
+  Data.Set C15:0x510 %LE %LONG 0x20000000                ; MMFR1
+  Data.Set C15:0x610 %LE %LONG 0x01230000                ; MMFR2
+  Data.Set C15:0x710 %LE %LONG 0x00102111                ; MMFR3
+)
+
+IF CONVert.TOLOWER("&cpu_selection")=="cortexa8"
+(
+  Data.Set C15:0x101 %LE %LONG 0x72                      ; ACTLR
+  Data.Set C15:0x20  %LE %LONG 0x00101111                ; ISAR0
+  Data.Set C15:0x120 %LE %LONG 0x13112111                ; ISAR1
+  Data.Set C15:0x220 %LE %LONG 0x21232031                ; ISAR2 
+  Data.Set C15:0x320 %LE %LONG 0x11112131                ; ISAR3
+  Data.Set C15:0x420 %LE %LONG 0x00011142                ; ISAR4
+  Data.Set C15:0x100 %LE %LONG 0x82048004                ; CTR 
+  Data.Set C15:0x410 %LE %LONG 0x01100003                ; MMFR0
+  Data.Set C15:0x510 %LE %LONG 0x20000000                ; MMFR1
+  Data.Set C15:0x610 %LE %LONG 0x01202000                ; MMFR2
+  Data.Set C15:0x710 %LE %LONG 0x00000211                ; MMFR3
+)
+
+IF CONVert.TOLOWER("&cpu_selection")=="cortexa7"
+(
+  Data.Set C15:0x101 %LE %LONG 0x6040                    ; ACTLR
+  Data.Set C15:0x20  %LE %LONG 0x02101110                ; ISAR0
+  Data.Set C15:0x120 %LE %LONG 0x13112111                ; ISAR1
+  Data.Set C15:0x220 %LE %LONG 0x21232041                ; ISAR2 
+  Data.Set C15:0x320 %LE %LONG 0x11112131                ; ISAR3
+  Data.Set C15:0x420 %LE %LONG 0x10011142                ; ISAR4
+  Data.Set C15:0x100 %LE %LONG 0x82448003                ; CTR 
+  Data.Set C15:0x410 %LE %LONG 0x10101105                ; MMFR0
+  Data.Set C15:0x510 %LE %LONG 0x40000000                ; MMFR1
+  Data.Set C15:0x610 %LE %LONG 0x01240000                ; MMFR2
+  Data.Set C15:0x710 %LE %LONG 0x02102211                ; MMFR3
+)
+
+IF CONVert.TOLOWER("&cpu_selection")=="cortexa5"
+(
+  Data.Set C15:0 %LE %LONG 410FC051                      ; MIDR
+  Data.Set C15:0x101 %LE %LONG 0x6000                    ; ACTLR
+  Data.Set C15:0x20 %LE %LONG 0x00101111                 ; ISAR0
+  Data.Set C15:0x120 %LE %LONG 0x13112111                ; ISAR1
+  Data.Set C15:0x220 %LE %LONG 0x21232041                ; ISAR2 
+  Data.Set C15:0x320 %LE %LONG 0x11112131                ; ISAR3
+  Data.Set C15:0x420 %LE %LONG 0x00011142                ; ISAR4
+  Data.Set C15:0x100 %LE %LONG 0x83338003                ; CTR 
+  Data.Set C15:0x410 %LE %LONG 0x00100003                ; MMFR0
+  Data.Set C15:0x510 %LE %LONG 0x40000000                ; MMFR1
+  Data.Set C15:0x610 %LE %LONG 0x01230000                ; MMFR2
+  Data.Set C15:0x710 %LE %LONG 0x00102211                ; MMFR3
+)
+
+PRINT "loading Linux kernel symbols..."
+Data.LOAD.ELF ~~~~/out/vmlinux /nocode
+
+print "initializing debugger MMU..."
+MMU.FORMAT LINUX swapper_pg_dir 0xc0000000--0xffffffff 0x80000000
+TRANSlation.COMMON 0xbf000000--0xffffffff            ; common area for kernel and processes
+TRANSlation.TableWalk ON                             ; debugger uses a table walk to decode virtual addresses
+TRANSlation.ON                                       ; switch on debugger(!) address translation 
+
+; Initialize Linux Awareness
+; Note that the Linux awareness needs the kernel symbols to work
+TASK.CONFIG ~~/demo/arm/kernel/linux/linux-3.x/linux3.t32
+MENU.ReProgram ~~/demo/arm/kernel/linux/linux-3.x/linux.men
+
+SYMBOL.SPATH.TRANSLATE "\build\" "Y:\"
+
+PRINT "Configure Terminal"
+TERM.SIZE 80. 1000.
+TERM.METHOD DCC
+TERM.Mode VT100
+TERM.SCROLL ON
+TERM
+
+go 0x8000829C
+data.list
+;Go
+
+;b.set trace32_of_init /onchip
+;b.set simulator_irqchip_handle_irq /onchip
+;b.set simulator_timer_interrupt /onchip
+
+
+
+ENDDO TRUE()
