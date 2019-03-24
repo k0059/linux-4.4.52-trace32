@@ -11,7 +11,7 @@ config CLKSRC_ACPI
 
 config CLKSRC_PROBE
 	bool
-
+	
 config CLKSRC_I8253
 	bool
 
@@ -327,4 +327,9 @@ config CLKSRC_ST_LPC
 	  Enable this option to use the Low Power controller timer
 	  as clocksource.
 
+config CLKSRC_TRACE32
+	bool
+	select CLKSRC_OF
+	select CLKSRC_MMIO
+	
 endmenu

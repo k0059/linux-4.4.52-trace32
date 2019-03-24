@@ -1,0 +1,9 @@
+config MACH_TRACE32
+	bool "Trace32 simulator"
+	depends on ARCH_MULTI_V6_V7
+	select CPU_V7
+	select CLKSRC_TRACE32
+	select TRACE32_IRQCHIP
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for Trace32 simulator based platform.
