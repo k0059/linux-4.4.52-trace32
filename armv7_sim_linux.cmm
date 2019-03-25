@@ -197,8 +197,8 @@ TRANSlation.ON                                       ; switch on debugger(!) add
 
 ; Initialize Linux Awareness
 ; Note that the Linux awareness needs the kernel symbols to work
-TASK.CONFIG ~~/demo/arm/kernel/linux/linux-3.x/linux3.t32
-MENU.ReProgram ~~/demo/arm/kernel/linux/linux-3.x/linux.men
+TASK.CONFIG ~~/linux/linux-3.x/linux3.t32
+MENU.ReProgram ~~/linux/linux-3.x/linux.men
 
 SYMBOL.SPATH.TRANSLATE "\build\" "Y:\"
 
