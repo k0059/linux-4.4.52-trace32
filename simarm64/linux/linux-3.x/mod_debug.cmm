@@ -1,0 +1,522 @@
+; --------------------------------------------------------------------------------
+; @Title: Linux Kernel Module Debugging Script
+; @Description:
+; Module Debugging (AutoLoader version)
+;
+; This script waits for a module to be started,
+; loads the symbols and halts the module at init_module()
+;
+; NOTE: Linux and the Linux awareness must be up.
+;
+; Start this script with the module name (without .ko) as 
+; argument to run the script as command line version or 
+; use /dialog to run the script in a dialog.
+;
+; Examples: 
+;   do mod_debug mymod      ; waits for "mymod.ko" to be inserted
+;   do mod_debug /dialog    ; opens a dialog window
+;
+; Prerequisites:
+; - Linux must be configured with CONFIG_KALLSYMS=y
+; - Linux must be booted
+; - Linux awareness must be configured
+; - Symbol Autoloader must be configured
+;
+; @Keywords: Linux module insmod
+; @Author: DIE
+; @Copyright: (C) 1989-2017 Lauterbach GmbH, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; $Id: mod_debug.cmm 2449 2017-09-13 13:13:59Z kjmal $
+
+
+// Define local macros
+ LOCAL  &para1 &para2 &para3 &para4
+ LOCAL  &module &dialog &exec &timeout
+ GLOBAL &true &false &breakaddr
+ &true=(1==1)
+ &false=(1==0)
+ &breakaddr=0
+ &exec=&false
+ 
+ 
+// Get the script parameters ("<name> /term /timeout <timeout>" or "/dialog")
+ ENTRY &para1 &para2 &para3 &para4
+
+
+// Check parameters
+ IF "&para1"==""
+ (
+    // no parameter given -> print usage
+    PRINT "Usage: ""do mod_debug <modulename> [/term] [/timeout <timeout>]"" or ""do mod_debug /dialog"""
+    ENDDO 1.
+ )
+ IF STRing.LoWeR("&para1")=="/dialog"
+ (
+    // /dialog -> open a dialog to select process
+    &dialog=&true
+    &module=""
+ )
+ ELSE
+ (
+    // parameter contains module name
+    &dialog=&false
+    &module="&para1"
+ )
+ IF (STRing.LoWeR("&para2")=="/term")||(STRing.LoWeR("&para4")=="/term")
+ (
+    &exec=&true
+ )
+ IF (STRing.LoWeR("&para2")=="/timeout")||(STRing.LoWeR("&para3")=="/timeout")
+ (
+   IF (STRing.LoWeR("&para2")=="/timeout")
+     &timeout="&para3"
+   ELSE
+     &timeout="&para4"
+   IF ("&timeout"=="")||("&timeout"<="0")
+   (
+     PRINT "Syntax error: missing or illegal timeout parameter"
+     ENDDO 1.
+   )
+ )
+
+
+// Activate autoloader for modules:
+ TASK.sYmbol.Option AutoLoad Module
+ 
+// Ensure windows update
+ SCREEN.ALways
+
+
+// Dialog or Command line version?
+
+ IF &dialog
+   GOTO dialog
+   
+; --------------------------------------------------------------------------------
+;   Command line interface
+; --------------------------------------------------------------------------------
+
+ // Convert module's name dashes if necessary
+ 
+ GOSUB convertmodulename &module
+ ENTRY &module
+
+ // Check if the module already exists in the module list.
+
+ LOCAL &existed
+ 
+ GOSUB checkexisting &module
+ ENTRY &existed
+ IF &existed
+   ENDDO 2.
+   
+ // Wait for module to be loaded.
+ // The module must be started by executing insmod at the Linux console.
+
+ IF ("&exec"=="&false")
+   PRINT "Please insert module &module..."
+ GOSUB waitforstart &module &exec
+ ENTRY &notifier
+
+ // Yep! The module is loaded and we found it.
+ // First check, if sections are already available
+
+ PRINT "waiting for sections to be loaded..."
+ GOSUB waitforsections &module &notifier
+
+ // Now load the module symbols with relocation 
+ 
+ PRINT "module &module started, loading symbols..."
+ GOSUB loadsymbols &module
+ ENTRY &init
+ IF &init==0
+    ENDDO 1.
+
+ // We got the init routine of the module.
+ // We let the system run until it reaches it.
+
+ PRINT "waiting for reaching module init..."
+ GOSUB waitforinit &module &init
+ 
+ // That's it, we halted at the init routine!
+
+ PRINT "done."
+
+ ENDDO 0.
+ 
+
+; --------------------------------------------------------------------------------
+; Dialog interface
+; --------------------------------------------------------------------------------
+
+dialog:
+ DIALOG.view
+ (
+        HEADER "Debug Module on init"
+        POS 0. 0. 24. 3.
+        BOX "module name (without .ko)"
+        POS 1. 1. 22. 1.
+modu:   DEFHOTEDIT "" 
+        (
+            IF DIALOG.STRing(modu)!=""
+                DIALOG.Enable bok
+            ELSE
+                DIALOG.Disable bok
+        )
+        POS 2. 3. 8.
+bok:    DEFBUTTON "Ok"
+        (
+            LOCAL &module
+            DIALOG.Disable bok
+            DIALOG.Disable modu
+            &module=DIALOG.STRing(modu)
+            
+            GOSUB convertmodulename &module
+            ENTRY &module
+
+            DIALOG.Set mess "Checking module &module..."
+            GOSUB checkexisting &module
+            ENTRY &existed
+            IF &existed
+                JUMPTO winclose
+
+            DIALOG.Set mess "Please insert module &module"
+            GOSUB waitforstart &module &exec
+            ENTRY &notifier
+
+            DIALOG.Set mess "Waiting for sections to be loaded..."
+            GOSUB waitforsections &module &notifier
+
+            DIALOG.Set mess "Module &module started. Loading symbols..."
+
+            GOSUB loadsymbols &module
+            ENTRY &init
+            IF &init==0
+                JUMPTO winclose
+
+            DIALOG.Set mess "Waiting for reaching init..."
+            GOSUB waitforinit &module &init
+            
+            JUMPTO winclose
+        )
+        POS 14. 3. 8.
+        BUTTON "Cancel" "JUMPTO winclose"
+        POS 0. 5. 24. 1.
+mess:   EDIT "Please enter module name" ""
+        CLOSE "JUMPTO winclose"
+ )
+
+ DIALOG.Disable bok
+ DIALOG.Disable mess
+ 
+ STOP
+
+winclose:
+
+ IF &breakaddr!=0
+ (
+    IF STATE.RUN()
+        Break.direct
+    Break.Delete &breakaddr
+    ON PBREAKAT &breakaddr
+    &breakaddr=0
+ )
+ 
+ DIALOG.END
+ ENDDO 0.
+
+
+; --------------------------------------------------------------------------------
+; Subroutine: Convert module name if necessary
+; --------------------------------------------------------------------------------
+
+// change "-" to "_" (see linux/scripts/Makefile.lib)
+
+convertmodulename:
+ ENTRY &module
+ 
+ // cut of trailing .ko if there
+ IF STRing.MID("&module",string.len("&module")-3,3)==".ko"
+   &module=STRing.CUT("&module",-3)
+
+ &dash=STRing.SCAN("&module","-",0)
+ IF &dash!=-1
+ (
+    // conversion necessary
+    &len=STRing.LENgth("&module")
+    WHILE &dash!=-1
+    (
+        &module=STRing.CUT("&module",&dash-&len)+"_"+STRing.CUT("&module",&dash+1)
+        &dash=STRing.SCAN("&module","-",0)
+    )
+ )
+ 
+ RETURN &module
+
+
+; --------------------------------------------------------------------------------
+; Subroutine: Check if module already exists
+; --------------------------------------------------------------------------------
+
+checkexisting:
+ ENTRY &process
+
+ IF STATE.RUN()
+    Break.direct
+    
+ IF (task.mod.magic("&module")&0xFFFFFFFF)!=0xFFFFFFFF
+ (
+    sYmbol.AutoLOAD.CLEAR "&module"
+    sYmbol.AutoLOAD.CHECK
+    sYmbol.AutoLOAD.TOUCH "&module"
+    IF sYmbol.EXIST(\\&module)
+        GOSUB message "Module &module already loaded." "Symbols loaded."
+    ELSE
+        GOSUB message "Module &module already loaded." "No symbol file found."
+    RETURN &true
+ )
+
+ // Delete possibly existing breakpoints of previous module runs
+ IF sYmbol.EXIST("\\&module")
+   Break.Delete sYmbol.SECRANGE(\\&module\.text)
+
+ RETURN &false
+
+
+; --------------------------------------------------------------------------------
+; Subroutine: Wait for start of module
+; --------------------------------------------------------------------------------
+
+waitforstart:
+ ENTRY &module &exec
+
+ // Wait for module to be loaded.
+ // The module must be started by executing insmod at the Linux console.
+
+ // We cannot load module symbols as long as we don't
+ // know to which address it is loaded. So we wait for
+ // the initialization of the module
+
+ // sys_init_module() is called for every module to start,
+ // and starts notifier_call_chain() after loading, but
+ // right before initializing the module. 
+ // The conditional breakpoint halts only, if the desired
+ // module is found in the module table.
+ 
+ IF sYmbol.EXIST(do_init_module)
+   &notifier=ADDRESS.OFFSET(do_init_module)
+ ELSE IF sYmbol.EXIST(blocking_notifier_call_chain)
+   &notifier=ADDRESS.OFFSET(blocking_notifier_call_chain)  // since 2.6.17
+ ELSE
+   &notifier=ADDRESS.OFFSET(notifier_call_chain)
+ &breakaddr=&notifier
+ Break.Delete &breakaddr                // delete previous set breakpoints
+ Break.Set &breakaddr /CONDition (task.mod.magic("&module")&0xFFFFFFFF)!=0xFFFFFFFF
+
+ ON PBREAKAT &breakaddr GOTO continue1  // if breakpoint reached: continue
+ IF ("&timeout"!="")
+   ON TIme &timeout GOTO timeout1       // if breakpoint is not reached in time
+   
+ Go.direct         // let the target run and load the module
+
+ IF &exec
+    TERM.Out "insmod &module.ko" 0x0a
+
+ STOP       // halt script until breakpoint reached
+ 
+ // breakpoint hit, continue script
+continue1:
+
+ Break.Delete &breakaddr    // delete breakpoint
+ &breakaddr=0
+ ON PBREAKAT &breakaddr     // delete script action
+ IF ("&timeout"!="")
+   ON TIme                  // delete timeout action
+
+ RETURN &notifier
+ 
+// breakpoint not hit, stop upon timeout
+timeout1:
+
+ LOCAL &nname
+ 
+ IF STATE.RUN()
+ (
+   Break.direct
+   Break.Delete &breakaddr    // delete breakpoint
+   Go.direct
+ )
+ ELSE
+   Break.Delete &breakaddr    // delete breakpoint
+ &breakaddr=0
+
+ ON PBREAKAT &breakaddr     // delete script action
+ ON TIme                    // delete timeout action
+ 
+ &nname=sYmbol.NAME(p:&notifier)
+ GOSUB message "Error: breakpoint at &nname not reached after timeout of &timeout"
+
+ ENDDO 1.
+
+
+; --------------------------------------------------------------------------------
+; Subroutine: Waiting for sections to be loaded
+; --------------------------------------------------------------------------------
+
+waitforsections: 
+ ENTRY &module &notifier
+ LOCAL &secaddr
+
+ // Yep! The module is loaded and we found it.
+ // First check, if sections are already available
+
+ &magic=task.mod.magic("&module")
+ &secaddr=task.mod.secaddr(&magic,1)
+ IF (&secaddr==0)||((&secaddr&0xFFFFFFFF)==0xFFFFFFFF)
+ (
+    // sections not yet available, wait for another notifier call
+
+    &breakaddr=address.offset(var.address(((struct module)*&magic).sect_attrs))
+    Break.Set &breakaddr /Write
+
+    
+    ON PBREAK GOTO continue3
+    IF ("&timeout"!="")
+      ON TIme &timeout GOTO timeout3  // if breakpoint is not reached in time
+
+repeat3:
+    Go.direct
+    STOP
+    
+continue3:
+
+    LOCAL &debugmode
+    ON PBREAK
+    &debugmode=DEBUGMODE()
+    Step.Mix
+    MODE.&debugmode
+
+    &secaddr=task.mod.secaddr(&magic,1)
+    IF (&secaddr==0)||((&secaddr&0xFFFFFFFF)==0xFFFFFFFF)
+    (
+
+      ON PBREAK GOTO continue3
+
+      GOTO repeat3
+    )
+    Break.Delete &breakaddr
+    ON PBREAKAT &breakaddr
+    IF ("&timeout"!="")
+      ON TIme                    // delete timeout
+    &breakaddr=0
+ )
+ 
+ RETURN
+
+timeout3:
+ IF STATE.RUN()
+ (
+   Break.direct
+   Break.Delete &breakaddr    // delete breakpoint
+   Go.direct
+ )
+ ELSE
+   Break.Delete &breakaddr    // delete breakpoint
+ ON PBREAKAT &breakaddr     // delete script action
+ ON TIme                    // delete timeout action
+ GOSUB message "Error: section &secaddr of module not reached after timeout of &timeout"
+ ENDDO 1.
+
+
+; --------------------------------------------------------------------------------
+; Subroutine: Load symbols of module
+; --------------------------------------------------------------------------------
+
+loadsymbols:
+ ENTRY &module
+ LOCAL &modaddr
+
+ // Now load the module symbols with relocation 
+
+ sYmbol.AutoLOAD.CLEAR "&module"   // clear possibly previous set
+ sYmbol.AutoLOAD.CHECK             // force new autoloader list
+ sYmbol.AutoLOAD.TOUCH "&module"   // force loading of process symbols
+
+ // get the address of the module's init routine
+ &modaddr=task.mod.mcb(task.mod.magic("&module"))
+ &init=Var.VALUE(((struct module*)&modaddr)->init)&~1
+ 
+ IF &init==0
+ (
+    GOSUB message "no init routine of module &module found"
+    RETURN 0
+ )
+ 
+ RETURN &init
+ 
+; --------------------------------------------------------------------------------
+; Subroutine: Wait for reaching init
+; --------------------------------------------------------------------------------
+
+waitforinit:
+ ENTRY &module &init
+ 
+ // Set a breakpoint onto the module's init routine
+ &breakaddr=&init
+ Break.Set &breakaddr
+
+ ON PBREAKAT &breakaddr GOTO continue2  // if breakpoint reached: continue
+ IF ("&timeout"!="")
+   ON TIme &timeout GOTO timeout2       // if breakpoint is not reached in time
+ 
+ Go.direct         // let the target run and start the module
+
+ STOP       // halt script until breakpoint reached
+
+ // breakpoint hit, continue script
+continue2: 
+         
+ Break.Delete &init         // delete breakpoint
+ &breakaddr=0
+ ON PBREAKAT &breakaddr     // delete script action
+ IF ("&timeout"!="")
+   ON TIme                  // delete timeout action
+ 
+ RETURN
+
+// breakpoint not hit, stop upon timeout
+timeout2:
+
+ LOCAL &pc
+ IF STATE.RUN()
+ (
+   Break.direct
+   Break.Delete &breakaddr    // delete breakpoint
+   &pc=Register(pc)
+   Go.direct
+ )
+ ELSE
+ (
+   Break.Delete &breakaddr    // delete breakpoint
+   &pc=Register(pc)
+ )
+ &breakaddr=0
+ 
+ ON PBREAKAT &breakaddr     // delete script action
+ ON TIme                    // delete timeout action
+ 
+ GOSUB message "Error: init routine (at &breakaddr) of module not reached after timeout of &timeout (PC=&pc)"
+ ENDDO 1.
+
+
+; -------------------------------------------------------------------------------- 
+;        Subroutine: print message in dialog box or command line 
+; --------------------------------------------------------------------------------
+
+message:
+ ENTRY &msg1 &msg2
+ IF &dialog
+    DIALOG.OK &msg1 &msg2
+ ELSE
+    PRINT &msg1 " " &msg2
+ RETURN

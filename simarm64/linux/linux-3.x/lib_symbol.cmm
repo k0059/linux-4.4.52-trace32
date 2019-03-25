@@ -1,0 +1,56 @@
+; --------------------------------------------------------------------------------
+; @Title: Script for Loading Library Symbols (Linux Awareness)
+; @Description:
+; NOTE: Linux and the Linux awareness must be up.
+;
+; start this script with the following arguments:
+; first argument:  process name
+; second argument: symbol file (with path, if necessary)
+;                  the file name MUST match the library name
+; third argument:  additional load option, if necessary
+;
+; examples: do lib_symbol hello /nfsroot/lib/libc.so /gcc3
+;
+; @Keywords: Linux library symbols awareness
+; @Author: DIE
+; @Copyright: (C) 1989-2017 Lauterbach GmbH, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; $Id: lib_symbol.cmm 2449 2017-09-13 13:13:59Z kjmal $  
+
+ ENTRY &process &librarypath &option
+
+ LOCAL &library &spaceid &address
+
+ ; get the library name from the symbol file path
+ &library=OS.FILE.NAME("&librarypath")
+
+; Delete possibly existing symbols
+ 
+ &libname=STRing.MID("&library",0,string.scan("&library",".so",1))
+ IF sYmbol.EXIST("\\&libname")
+   sYmbol.Delete \\&libname
+
+ IF STATE.RUN()
+   Break.direct
+
+ ; Now load the symbols of the module into the debugger
+
+ &spaceid=task.proc.spaceid("&process")
+
+ IF &spaceid==0xffffffff
+ (
+    PRINT "Sorry: process &process not found."
+    ENDDO
+ )
+
+ &address=task.lib.address("&library",task.proc.magic("&process"))
+
+ IF (&address&0xffffffff)==0xffffffff
+ (
+    PRINT "Sorry: library &library not found."
+    ENDDO
+ )
+
+ PRINT "loading &library symbols..."
+  
+ Data.LOAD.Elf &librarypath &spaceid:&address /NoCODE /NoClear &option

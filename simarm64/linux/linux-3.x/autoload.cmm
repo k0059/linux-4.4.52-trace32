@@ -1,0 +1,261 @@
+; --------------------------------------------------------------------------------
+; @Title: Linux autoload script, called by TRACE32 if symbols are to be loaded
+; @Description:
+;   This script is part of the TRACE32 Linux Awareness
+; 
+; @Keywords: Linux autoloader awareness
+; @Author: DIE
+; @Copyright: (C) 1989-2017 Lauterbach GmbH, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; $Id: autoload_linux.cmm 2843 2018-01-08 16:35:47Z pkroener $ 
+
+// define local macros
+ LOCAL &filename &basename &progname &progpath &filepath &code &data &space &type &machine
+ LOCAL &symfilename1 &symfilename2
+
+// get filename and relocation information
+ // these parameters are passed from TRACE32 when calling this skript
+ 
+ ENTRY &filename &type &code &data &space &machine
+ 
+ //print "autoload: " &filename " " &type " " &code " " &data " " &space " " &machine
+ 
+ // &filename:      name of process/file
+ // &type:          type of file: 1=process, 2=library, 3=kernel module
+ // &code:          text segment address
+ // &data:          data segment address
+ // &space:         space id of process
+ // &machine:       machine id of process
+ 
+// get symbol file name and program name
+ &filepath=""
+ IF ((&type&0xffff)==2)
+ (
+     &basename=&filename
+     RePeAT
+     (
+         &basename=STRing.CUT("&basename",-STRing.LENgth(OS.FILE.EXTENSION(&basename)))
+     )
+     WHILE OS.FILE.EXTENSION(&basename)!=""
+ )
+ ELSE
+ (
+     &basename=STRing.Replace("&filename", ":", ".", 0)  ; FIX: some android process names contain a ":"
+     &basename=STRing.CUT(&basename,-STRing.LENgth(OS.FILE.EXTENSION(&basename)))
+ )
+ IF (&type==1)
+ (
+   // processes
+   &symfilename1="&basename"        // without extension
+   &symfilename2=&filename          // as given in parameter
+   IF task.y.o.s(rootpath)!=""
+   (
+     // root path option set, use target path
+     LOCAL &magic
+     &magic=task.proc.magic(&filename)
+     &filepath=task.y.o.s(rootpath)+task.proc.path(&magic)
+   )
+ )
+ IF ((&type&0xffff)==2||(&type&0xffff)==4)
+ (
+   // libraries
+   &symfilename1=&filename
+   &symfilename2="&basename"+".so"
+   IF task.y.o.s(rootpath)!=""
+   (
+     // root path option set, use target path
+     LOCAL &magic
+     &magic=task.proc.sid2magic(&type>>16.)
+     &filepath=task.y.o.s(rootpath)+task.lib.path(&filename,&magic)
+   )
+ )
+ IF (&type==3)
+ (
+   // kernel modules
+   &symfilename1="&basename"+".ko"
+   // Linux converts dashes to underlines - try to reverse this
+   LOCAL &ul &len
+   &symfilename2="&basename"+".ko"
+   &len=STRing.LENgth("&symfilename2")
+   &ul=STRing.SCAN("&symfilename2","_",0)
+   WHILE &ul!=-1
+   (
+     &symfilename2=STRing.CUT("&symfilename2",&ul-&len)+"-"+STRing.CUT("&symfilename2",&ul+1)
+     &ul=STRing.SCAN("&symfilename2","_",0)
+   )
+ )
+
+// get program name
+ &progname=OS.FILE.NAME("&basename")
+
+// set space id to zero if not given
+ IF "&space"==""
+  &space=0
+
+// delete symbols if they already exist
+ IF sYmbol.EXIST("\\&progname")
+ (
+   // create program path - due to possible special characters
+   &progpath="`"+"\\"+"&progname"+"`"
+   sYmbol.Delete &progpath
+ )
+ GROUP.Delete "&progname"
+
+// check if preset file path is valid
+ IF !OS.FILE("&filepath")
+    &filepath=sYmbol.SEARCHFILE("&symfilename1")
+// search file in source search path and open dialog when not there
+ IF !OS.FILE("&filepath")
+    &filepath=sYmbol.SEARCHFILE("&symfilename2")
+ IF !OS.FILE("&filepath")
+ (
+   LOCAL &file &spath
+   
+   IF task.y.o(dialog)==0
+       ENDDO
+   
+   &file=OS.FILE.NAME("&symfilename1")
+   WinPOS ,,,,,, filebox normal "Searching symbols for &filename"
+   DIALOG.File "*&file*"
+   ENTRY %LINE &filepath
+   IF "&filepath"==""
+     ENDDO
+   &spath=OS.FILE.PATH("&filepath")
+   sYmbol.SourcePATH.Set "&spath"
+ )
+
+// load symbol file (options for sourcepath, e.g. /STRIPPART may need to be added when required)
+
+; --------------------------------------------------------------------------------
+;                                   PROCESS
+; --------------------------------------------------------------------------------
+
+ IF (&type==1)  // processes
+ (
+   LOCAL &locateat &access
+
+  IF "&machine"!=""
+  (
+    &access=TASK.MACHINE.ACCESS(&machine)
+    IF STR.COUNT("&access", "H")==0
+    (
+      IF !STATE.MONITOR.RUN()
+        &access=TASK.ACCESS.ZONE()+"U:"
+      ELSE
+        &access="U:"
+    )
+    &access="&access"+"&machine:::"  
+  )
+  ELSE
+  (
+    IF !STATE.MONITOR.RUN()
+      &access=TASK.ACCESS.ZONE()+"U:"
+    ELSE
+      &access="U:"
+  )
+
+  &access="&access"+"&space:0"
+
+   IF !STATE.MONITOR.RUN()
+     &locateat="/locateat &code"
+
+
+   Data.LOAD.Elf "&filepath" &access /NoCODE /NoClear &locateat
+
+   IF task.y.o(vm)==1
+   (
+     TRANSlation.SHADOW ON
+     Data.LOAD.Elf "&filepath" &access /NoClear /NosYmbol /locateat &code /VM
+   )
+   IF task.y.o(mmuscan)==1      // scan only if TRANSlation.TABLEWALK not configured
+     MMU.TaskPageTable.SCAN &access
+   LOCAL &range
+   &range="&access"+"--0xffffffffffffffff"
+   GROUP.Create "&progname" &range /GREEN
+ )
+ 
+; --------------------------------------------------------------------------------
+;                                   MODULE
+; --------------------------------------------------------------------------------
+ IF (&type==3)  // modules
+ (
+   LOCAL &access
+
+  IF "&machine"!=""
+  (
+    &access=TASK.MACHINE.ACCESS(&machine)
+    IF STR.COUNT("&access", "H")==0
+      &access="S:"
+    &access="&access"+"&machine:::"  
+  )
+  ELSE
+    &access="S:"
+
+   &access="&access"+"0:0"
+   Data.LOAD.Elf "&filepath" &access /NoCODE /NoClear /name &progname /reloctype &type
+   GROUP.Create "&progname" sYmbol.SECRANGE(\\&progname\.text) /YELLOW
+ )
+
+; --------------------------------------------------------------------------------
+;                                   LIBRARY
+; --------------------------------------------------------------------------------
+
+ IF ((&type&0xffff)==2) // libraries
+ (
+   LOCAL &locateat &access
+
+  IF "&machine"!=""
+  (
+    &access=TASK.MACHINE.ACCESS(&machine)
+    IF STR.COUNT("&access", "H")==0
+      &access=TASK.ACCESS.ZONE()+"U:"
+    &access="&access"+"&machine:::"  
+  )
+  ELSE
+    &access=TASK.ACCESS.ZONE()+"U:"
+
+  IF "&space"!=""
+    &access="&access"+"&space:0"
+  ELSE
+    &access="&access"+"0"
+   Data.LOAD.Elf "&filepath" &access /NoCODE /NoClear /locateat &code
+ )
+
+
+; --------------------------------------------------------------------------------
+;                                   OAT
+; --------------------------------------------------------------------------------
+
+ IF ((&type&0xffff)==4) // Android oat file
+ (
+    LOCAL &taskaccess &sym &name
+    &name="&basename"
+    &taskaccess=TASK.ACCESS.ZONE()+"U"
+    IF "&machine"!=""
+      &access="&taskaccess"+"&machine:::"
+     IF "&space"!=""
+     (
+       &taskaccess="&taskaccess"+":&space"
+       &name="&name"+"_&space"
+     )
+     ELSE
+     (
+       &name="&name"+"_0"
+       &taskaccess="&taskaccess"+":0"
+     )
+
+     Data.LOAD.Elf "&filepath" &taskaccess:0 /NoCODE /NoClear /LOCATEAT &code /name &name
+
+     &sym="\\`"+"&name"+"\*"
+     IF sYmbol.COUNT(&sym)==1  //OAT file doesn't contain DWARF debug info
+     (
+       &name="`\\"+"&name"+"`"
+       sYmbol.DELETE &name
+       Data.LOAD.OAT "&filepath" &taskaccess:0 /NoCODE /NoClear /LOCATEAT &code
+       Data.LOAD.OAT "&filepath" &taskaccess:0 /NoCODE /NoClear /DEX /LOCATEAT &code
+     )
+  )
+
+ 
+ ENDDO
+

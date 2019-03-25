@@ -1,0 +1,944 @@
+; --------------------------------------------------------------------------------
+; @Title: Menu File for TRACE32 Linux Awareness
+; @Description: -
+; @Keywords: Linux menu awareness
+; @Author: DIE KJM
+; @Copyright: (C) 1989-2014 Lauterbach GmbH, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; $Id: linux.men 2871 2018-01-18 09:35:33Z kjmal $
+
+ADD
+MENU
+(
+  POPUP "&Linux"
+  (
+    DEFAULT
+    MENUITEM "[:objects]Display &Processes" "TASK.Process"
+    MENUITEM "[:objects]Display &ps-like"   "TASK.PS"
+    MENUITEM "[:objects]Display &Tasks"     "TASK.DTask"
+    MENUITEM "[:objects]Display &Modules"   "TASK.MODule"
+    POPUP "[:objects]Display &File System"
+    (
+        MENUITEM "[:objects]Display FS Types"         "TASK.FS.Types"
+        MENUITEM "[:objects]Display Mount Points"     "TASK.FS.Mount"
+        MENUITEM "[:objects]Display Mounted Devices"  "TASK.FS.MountDevs"
+        MENUITEM "[:objects]Display /proc"            "TASK.FS.PROC"
+        MENUITEM "[:objects]Display /sys"             "TASK.FS.SYS"
+        MENUITEM "[:objects]Display Partitions"       "TASK.FS.PART"
+    )
+    SEPARATOR
+    POPUP "&Process Debugging"
+    (
+      MENUITEM "[:symbols]&Load Symbols..."
+      (
+        DIALOG
+        (
+          HEADER "TASK.sYmbol.LOAD"
+          POS 0. 0. 30. 3.
+          BOX "Process name"
+          POS 1. 1. 20. 1.
+procl:    DEFEDIT "" ""
+          POS 22. 1. 7. 1.
+          BUTTON "Browse..."
+          (
+            DIALOG.FILE "*"
+            ENTRY %LINE &file
+            DIALOG.SET procl "&file"
+          )
+          POS 6. 3. 7. 1.
+          DEFBUTTON "Ok"
+          (
+            LOCAL &procl &cwd
+            &procl=DIALOG.STRING(procl)
+            TASK.sYmbol.LOAD "&procl"
+            DIALOG.END
+          )
+          POS 17. 3. 7. 1.
+          BUTTON "Cancel"  "DIALOG.END"
+        )
+      )
+      MENUITEM "[:symbols]&Delete Symbols..."
+      (
+        DIALOG
+        (
+          HEADER "TASK.sYmbol.DELete"
+          POS 0. 0. 30. 3.
+          BOX "Process name"
+          POS 1. 1. 20. 1.
+procd:    DEFEDIT "" ""
+          POS 22. 1. 7. 1.
+          BUTTON "Browse..."
+          (
+            DIALOG.FILE "*"
+            ENTRY %LINE &file
+            DIALOG.SET procd "&file"
+          )
+          POS 6. 3. 7. 1.
+          DEFBUTTON "Ok"
+          (
+            LOCAL &procd
+            &procd=DIALOG.STRING(procd)
+            TASK.sYmbol.DELete "&procd"
+            DIALOG.END
+          )
+          POS 17. 3. 7. 1.
+          BUTTON "Cancel"  "DIALOG.END"
+        )
+      )
+      MENUITEM "Debug New Process..."
+      (
+        &extdir=task.getdir();
+        DO "&extdir/app_debug" /DIALOG
+      )
+      ADDHERE
+      POPUP "&Watch Processes"
+      (
+        MENUITEM "[:plus]&Add..."
+        (
+          DIALOG
+          (
+            HEADER "TASK.Watch.Add"
+            POS 0. 0. 24. 3.
+            BOX "Process name"
+            POS 1. 1. 22. 1.
+wproca:     DEFEDIT "" ""
+            POS 2. 3. 7. 1.
+            DEFBUTTON "Ok"
+            (
+              LOCAL &wproca
+              &wproca=DIALOG.STRING(wproca)
+              TASK.Watch.View "&wproca"
+              DIALOG.END
+            )
+            POS 15. 3. 7. 1.
+            BUTTON "Cancel"  "DIALOG.END"
+          )
+        )
+        MENUITEM "[:remove]&Remove..."
+        (
+          DIALOG
+          (
+            HEADER "TASK.Watch.DELete"
+            POS 0. 0. 24. 3.
+            BOX "Process name"
+            POS 1. 1. 22. 1.
+wprocd:     DEFEDIT "" ""
+            POS 2. 3. 7. 1.
+            DEFBUTTON "Ok"
+            (
+              LOCAL &wprocd
+              &wprocd=DIALOG.STRING(wprocd)
+              TASK.Watch.DELete "&wprocd"
+              DIALOG.END
+            )
+            POS 15. 3. 7. 1.
+            BUTTON "Cancel"  "DIALOG.END"
+          )
+        )
+      )
+      SEPARATOR
+      MENUITEM "[:mmu]Display Process MMU Tables"
+      (
+        DIALOG
+        (
+            HEADER "MMU.List TaskPageTable"
+            POS 0. 0. 24. 3.
+            BOX "Process name"
+            POS 1. 1. 22. 1.
+wproca1:    DEFEDIT "" ""
+            POS 2. 3. 7. 1.
+            DEFBUTTON "Ok"
+            (
+              LOCAL &wproca
+              &wproca=DIALOG.STRING(wproca1)
+              MMU.List TaskPageTable "&wproca"
+              DIALOG.END
+            )
+            POS 15. 3. 7. 1.
+            BUTTON "Cancel"  "DIALOG.END"
+        )
+      )
+      MENUITEM "[:mmu]Display Kernel MMU Tables" "MMU.List KernelPageTable"
+    )
+    POPUP "&Module Debugging"
+    (
+      MENUITEM "[:symbols]&Load Symbols..."
+      (
+        DIALOG
+        (
+          HEADER "TASK.sYmbol.LOADMod"
+          POS 0. 0. 30. 3.
+          BOX "Module name"
+          POS 1. 1. 20. 1.
+modl:     DEFEDIT "" ""
+          POS 22. 1. 7. 1.
+          BUTTON "Browse..."
+          (
+            DIALOG.FILE "*.ko"
+            ENTRY %LINE &file
+            DIALOG.SET modl "&file"
+          )
+          POS 6. 3. 7. 1.
+          DEFBUTTON "Ok"
+          (
+            LOCAL &modl
+            &modl=DIALOG.STRING(modl)
+            TASK.sYmbol.Option AutoLoad Module
+            TASK.sYmbol.LOADMod "&modl"
+            DIALOG.END
+          )
+          POS 17. 3. 7. 1.
+          BUTTON "Cancel"  "DIALOG.END"
+        )
+      )
+      MENUITEM "[:symbols]&Delete Symbols..."
+      (
+        DIALOG
+        (
+          HEADER "TASK.sYmbol.DELeteMod"
+          POS 0. 0. 30. 3.
+          BOX "Module name"
+          POS 1. 1. 20. 1.
+modd:     DEFEDIT "" ""
+          POS 22. 1. 7. 1.
+          BUTTON "Browse..."
+          (
+            DIALOG.FILE "*.ko"
+            ENTRY %LINE &file
+            DIALOG.SET modd "&file"
+          )
+          POS 6. 3. 7. 1.
+          DEFBUTTON "Ok"
+          (
+            LOCAL &modd
+            &modd=DIALOG.STRING(modd)
+            TASK.sYmbol.DELeteMod "&modd"
+            DIALOG.END
+          )
+          POS 17. 3. 7. 1.
+          BUTTON "Cancel"  "DIALOG.END"
+        )
+      )
+      MENUITEM "Debug Module on init..."
+      (
+        &extdir=task.getdir()
+        DO "&extdir/mod_debug" /DIALOG
+      )
+      SEPARATOR
+      MENUITEM "[:mmu]Display Kernel MMU Tables" "MMU.List KernelPageTable"
+    )
+    POPUP "&Library Debugging"
+    (
+      MENUITEM "[:symbols]&Load Symbols..."
+      (
+        DIALOG
+        (
+          HEADER "TASK.sYmbol.LOADLib"
+          POS 0. 0. 30. 3.
+          BOX "Process name"
+          POS 1. 1. 28. 1.
+libpl:    DEFEDIT "" ""
+          POS 0. 3. 30. 3.
+          BOX "Library name"
+          POS 1. 4. 20. 1.
+libll:    DEFEDIT "" ""
+          POS 22. 4. 7. 1.
+          BUTTON "Browse..."
+          (
+            DIALOG.FILE "*.so*"
+            ENTRY %LINE &file
+            DIALOG.SET libll "&file"
+          )
+          POS 6. 6. 7. 1.
+          DEFBUTTON "Ok"
+          (
+            LOCAL &libpl &libll
+            &libpl=DIALOG.STRING(libpl)
+            &libll=DIALOG.STRING(libll)
+            TASK.sYmbol.LOADLib "&libpl" "&libll"
+            DIALOG.END
+          )
+          POS 17. 6. 7. 1.
+          BUTTON "Cancel"  "DIALOG.END"
+        )
+      )
+      MENUITEM "[:symbols]&Delete Symbols..."
+      (
+        DIALOG
+        (
+          HEADER "TASK.sYmbol.DELeteLib"
+          POS 0. 0. 30. 3.
+          BOX "Process name"
+          POS 1. 1. 28. 1.
+libpd:    DEFEDIT "" ""
+          POS 0. 3. 30. 3.
+          BOX "Library name"
+          POS 1. 4. 20. 1.
+libld:    DEFEDIT "" ""
+          POS 22. 4. 7. 1.
+          BUTTON "Browse..."
+          (
+            DIALOG.FILE "*.so*"
+            ENTRY %LINE &file
+            DIALOG.SET libld "&file"
+          )
+          POS 6. 6. 7. 1.
+          DEFBUTTON "Ok"
+          (
+            LOCAL &libpd &libld
+            &libpd=DIALOG.STRING(libpd)
+            &libld=DIALOG.STRING(libld)
+            TASK.sYmbol.DELeteLib "&libpd" "&libld"
+            DIALOG.END
+          )
+          POS 17. 6. 7. 1.
+          BUTTON "Cancel"  "DIALOG.END"
+        )
+      )
+      SEPARATOR
+      MENUITEM "[:mmu]Display Process MMU Tables"
+      (
+        DIALOG
+        (
+            HEADER "MMU.List TaskPageTable"
+            POS 0. 0. 24. 3.
+            BOX "Process name"
+            POS 1. 1. 22. 1.
+wproca2:    DEFEDIT "" ""
+            POS 2. 3. 7. 1.
+            DEFBUTTON "Ok"
+            (
+              LOCAL &wproca
+              &wproca=DIALOG.STRING(wproca2)
+              MMU.List TaskPageTable "&wproca"
+              DIALOG.END
+            )
+            POS 15. 3. 7. 1.
+            BUTTON "Cancel"  "DIALOG.END"
+        )
+      )
+      MENUITEM "[:mmu]Display Kernel MMU Tables" "MMU.List KernelPageTable"
+    )
+    SEPARATOR
+    POPUP "[:symbols]Symbol &Autoloader"
+    (
+        MENUITEM "[:symbols]List Components"  "sYmbol.AutoLoad.List"
+        MENUITEM "[:init]Check Now!"       "sYmbol.AutoLoad.CHECK"
+        MENUITEM "[:objects]Components"
+        (
+            DIALOG
+            (
+                HEADER "TASK.sYmbol.Option AutoLoad"
+                POS 0. 0. 25.
+                proc: CHECKBOX "Process (Processes)"
+                (
+                    IF DIALOG.BOOLEAN(proc)
+                        TASK.sYmbol.Option AutoLoad Process
+                    ELSE
+                        TASK.sYmbol.Option AutoLoad NoProcess
+                )
+                mod:  CHECKBOX "Module (Modules)"
+                (
+                    IF DIALOG.BOOLEAN(mod)
+                        TASK.sYmbol.Option AutoLoad Module
+                    ELSE
+                        TASK.sYmbol.Option AutoLoad NoModule
+                )
+                lib:  CHECKBOX "Library (All Libraries)"
+                (
+                    IF DIALOG.BOOLEAN(lib)
+                        TASK.sYmbol.Option AutoLoad Library
+                    ELSE
+                        TASK.sYmbol.Option AutoLoad NoLibrary
+                    DIALOG.SET clib "FALSE"
+                )
+                clib: CHECKBOX "CurrLib (Libraries of Current Process)"
+                (
+                    IF DIALOG.BOOLEAN(clib)
+                        TASK.sYmbol.Option AutoLoad CurrLib
+                    ELSE
+                        TASK.sYmbol.Option AutoLoad NoLibrary
+                    DIALOG.SET lib "FALSE"
+                )
+            )
+            DIALOG.SET proc ((task.y.o(autoload)&0x1)!=0)
+            DIALOG.SET mod  ((task.y.o(autoload)&0x4)!=0)
+            DIALOG.SET lib  ((task.y.o(autoload)&0x2)!=0)
+            DIALOG.SET clib ((task.y.o(autoload)&0x8)!=0)
+        )
+        SEPARATOR
+        MENUITEM "[:config]Config" "sYmbol.AutoLOAD.config"
+        MENUITEM "Set Target Root Path"
+        (
+            DIALOG
+            (
+                HEADER "TASK.sYmbol.Option ROOTPATH"
+                POS 0. 0. 40. 3.
+                BOX "target root path on host"
+                POS 1. 1. 30. 1
+rootdir:        edit "" ""
+                POS 32. 1. 7. 1.
+                BUTTON "Browse..."
+                (
+                    DIALOG.dir "*"
+                    ENTRY %LINE &dir
+                    DIALOG.SET rootdir "&dir"
+                )
+                POS 4. 3.5 8.
+                DEFBUTTON "Ok"
+                (
+                    LOCAL &dir
+                    &dir=DIALOG.STRING(rootdir)
+                    TASK.sYmbol.Option ROOTPATH "&dir"
+                    DIALOG.END
+                )
+                POS 16. 3.5 8.
+                BUTTON "Cancel" "DIALOG.END"
+                POS 28. 3.5 8.
+                BUTTON "Help" "HELP __RTOS_LINUX_S__TASK_Y_O_ROOTPATH"
+            )
+        )
+        SEPARATOR
+        MENUITEM "[:manual]Symbol Autoloader Help" "HELP __RTOS_LINUX_S_.LINK.SymbolAutoLoader"
+    )
+    SEPARATOR
+    MENUITEM "[:config]&Options..."
+    (
+        &extdir=task.getdir()
+        do "&extdir/../options.cmm"
+    )
+    SEPARATOR
+    MENUITEM "[:objects]&Display Kernel Log" "TASK.DMESG"
+    POPUP "[:objects]&Device Tree"
+    (
+        MENUITEM "[:objects]Display Device Tree"      "TASK.DTB"
+        MENUITEM "[:objects]Display Source"           "TASK.DTS"
+        MENUITEM "[:dump]Extract Blob To File"
+        (
+          &extdir=task.getdir();
+          DO "&extdir/../extract_dtb" /DIALOG
+        )
+        MENUITEM "[:list]Save Source To File"
+        (
+          DIALOG
+          (
+            HEADER "Save Device Tree Source"
+            POS 0. 0. 30. 3.
+            BOX "File name"
+            POS 1. 1. 20. 1.
+dtsfile:    DEFEDIT "devicetree.dts" ""
+            POS 22. 1. 7. 1.
+            POS 6. 3. 7. 1.
+            DEFBUTTON "Save"
+            (
+              LOCAL &dtsfile
+              &dtsfile=DIALOG.STRING(dtsfile)
+              PRinter.File &dtsfile
+              IF STATE.RUN()
+                Break
+              EXT.MaxVSize 10000.
+              WinPrint.TASK.DTS
+              DIALOG.END
+              EXT.MaxVSize 2000.
+              PRinter.select WIN
+            )
+            POS 17. 3. 7. 1.
+            BUTTON "Cancel"  "DIALOG.END"
+          )
+        )
+    )
+    SEPARATOR
+    MENUITEM "[:term]&Linux Terminal"
+    (
+      IF !window.name(term)
+      (
+        winpos ,,,,,, term
+        TERM
+      )
+      ELSE
+        wintop term
+    )
+    MENUITEM "[:config]Configure Terminal..."
+    (
+      IF window.name(term)
+        DIALOG.ok "Please close terminal window first!"
+      ELSE
+      (
+        DIALOG
+        (
+          HEADER "TERM.METHOD"
+          POS 0. 0. 9.
+          tp.be:  CHOOSEBOX "BufferE"
+          (
+              DIALOG.DISABLE tp.com.dev
+              DIALOG.DISABLE tp.com.bd
+              DIALOG.ENABLE tp.be.out
+              DIALOG.ENABLE tp.be.in
+          )
+          POS 10. 0. 5.
+          text "out:"
+          POS 15. 0. 6.
+          tp.be.out: EDIT "T32OUTBUF" ""
+          POS 23. 0. 6.
+          text "in:"
+          POS 29. 0. 6.
+          tp.be.in:  EDIT "T32INBUF" ""
+          POS 0. 1. 9.
+          tp.dcc: CHOOSEBOX "DCC"
+          (
+              DIALOG.DISABLE tp.com.dev
+              DIALOG.DISABLE tp.com.bd
+              DIALOG.DISABLE tp.be.out
+              DIALOG.DISABLE tp.be.in
+          )
+          POS 0. 2. 9.
+          tp.com: CHOOSEBOX "COM"
+          (
+              DIALOG.DISABLE tp.be.out
+              DIALOG.DISABLE tp.be.in
+              DIALOG.ENABLE tp.com.dev
+              DIALOG.ENABLE tp.com.bd
+          )
+          POS 10. 2. 5.
+          text "device:"
+          POS 15. 2. 6.
+          tp.com.dev: EDIT "COM1" ""
+          POS 23. 2. 6.
+          text "baudrate:"
+          POS 29. 2. 6.
+          tp.com.bd:  EDIT "115200." ""
+          POS 9. 3.5 7.
+          DEFBUTTON "Ok"
+          (
+            &tpbeout=DIALOG.STRING(tp.be.out)
+            &tpbein=DIALOG.STRING(tp.be.in)
+            &tpcomdev=DIALOG.STRING(tp.com.dev)
+            &tpcombd=DIALOG.STRING(tp.com.bd)
+            IF DIALOG.BOOLEAN(tp.be)
+              TERM.METHOD BufferE &tpbeout &tpbein
+            ELSE IF DIALOG.BOOLEAN(tp.dcc)
+              TERM.METHOD DCC
+            ELSE IF DIALOG.BOOLEAN(tp.com)
+              TERM.METHOD COM &tpcomdev &tpcombd 8 NONE 1STOP NONE
+            DIALOG.END
+          )
+          POS 19. 3.5 7.
+          BUTTON "Cancel"  "DIALOG.END"
+        )
+        DIALOG.DISABLE tp.be.out
+        DIALOG.DISABLE tp.be.in
+        DIALOG.DISABLE tp.com.dev
+        DIALOG.DISABLE tp.com.bd
+        IF CPUFAMILY()!="ARM"
+          DIALOG.DISABLE tp.dcc
+      )
+    )
+    SEPARATOR
+    MENUITEM "[:dump]Generate RAM Dump"
+    (
+      &extdir=task.getdir();
+      do "&extdir/../ramdump.cmm"
+    )
+    MENUITEM "[:btnok]Integrity Check" "TASK.CHECK"
+  )
+  POPUP "Trace"
+  (
+    POPUP "List"
+    (
+      SEPARATOR
+      MENUITEM "[:alist]&Task Switches"     "Trace.List List.TASK"
+      MENUITEM "[:alist]&Default and Tasks" "Trace.List List.TASK DEFault"
+    )
+  )
+  POPUP "Perf"
+  (
+    SEPARATOR
+    POPUP "&Task Runtime"
+    (
+      MENUITEM "&Prepare"
+      (
+        IF Trace.Method.Analyzer()
+        (
+          Analyzer.AutoInit ON
+        )
+        IF (ICE()||FIRE())&&!Analyzer.MODE.FLOW()
+        (
+          Analyzer.ReProgram
+          (
+            Sample.Enable IF AlphaBreak&&Write
+          )
+          Break.Delete /Alpha
+          Break.Set task.config(magic)++(task.config(magicsize)-1) /Alpha
+        )
+        IF Analyzer.MODE.FLOW()
+        (
+          Break.Delete /TraceEnable
+          Break.Set task.config(magic) /TraceEnable
+        )
+      )
+      MENUITEM "[:perf]Show &Numerical"   "Trace.STATistic.TASK"
+      MENUITEM "[:achart]Show as &Timing" "Trace.CHART.TASK"
+      MENUITEM "[:achart]Tracking with Trace &List"
+      (
+        Trace.List List.TASK DEFault /Track
+        Trace.CHART.TASK /Track
+      )
+    )
+    POPUP "Task &Function Runtime"
+    (
+      MENUITEM "&Prepare"
+      (
+        IF Trace.Method.Analyzer()
+        (
+          Analyzer.AutoInit ON
+          Analyzer.STATistic.PreFetch ON
+        )
+
+        IF (ICE()||FIRE())&&!Analyzer.MODE.FLOW()
+        (
+          IF Analyzer.CONFIG.HAC()
+          (
+             Analyzer.ReProgram
+             (
+               Sample.Enable IF AlphaBreak
+               Sample.Enable IF BetaBreak
+               Mark.A        IF AlphaBreak
+               Mark.B        IF BetaBreak
+             )
+          )
+          ELSE
+          (
+             Analyzer.ReProgram
+             (
+               Sample.Enable IF AlphaBreak||BetaBreak
+               Mark.A IF AlphaBreak
+               Mark.B IF BetaBreak
+             )
+          )
+          Break.Delete /Alpha /Beta /Charly
+          Break.SetFunc
+          Break.Set task.config(magic)++(task.config(magicsize)-1) /Alpha
+        )
+        IF Analyzer.MODE.FLOW()
+        (
+          Break.Delete /TraceData
+          Break.Set task.config(magic) /TraceData
+        )
+      )
+      MENUITEM "[:perf]Show &Numerical"     "Trace.STATistic.TASKFUNC"
+      MENUITEM "[:perf]Show as &Tree"       "Trace.STATistic.TASKTREE"
+      MENUITEM "[:perf]Show &Detailed Tree" "Trace.STATistic.TASKTREE ALL"
+      MENUITEM "[:achart]Show as &Timing"   "Trace.CHART.TASKFUNC"
+      MENUITEM "[:alist]Show N&esting"      "Trace.List List.TASK FUNC TI.FUNC"
+    )
+  )
+  POPUP "&Help"
+  (
+    MENUITEM "[:manual]Linux Awareness Manual" "HELP __RTOS_LINUX_S_"
+    POPUP "[:manual]Training Manuals"
+    (
+    	REPLACE
+    	MENUITEM "[:manual]OS Linux"             "HELP __TR_RTOS_LINUX_"
+    )
+  )
+)
+
+
+MENU "task.dt"
+(
+  DEFAULT
+  MENUITEM "[:objects]Display detailed"
+  (
+    &address=address.offset(track.address())
+    TASK.DTask &address
+  )
+  MENUITEM "[:var]Display task struct"
+  (
+    &address=track.address()
+    Var.View %Open %String (struct task_struct *)(&address)
+  )
+  MENUITEM "[:objects]Display maps"
+  (
+    &address=task.proc.tcb(address.offset(track.address()))
+    TASK.MAPS &address
+  )
+  SEPARATOR
+  MENUITEM "[:varframe]Display Stack Frame"
+  (
+    &address=address.offset(track.address())
+    Frame /Locals /Caller /Task &address /MODule
+  )
+  MENUITEM "[:reg]Display Registers"
+  (
+    &address=address.offset(track.address())
+     Register /Task &address
+  )
+  MENUITEM "[:correlate]Switch Context"
+  (
+    &address=address.offset(track.address())
+    Register.TASK &address
+  )
+  SEPARATOR
+  MENUITEM "[:symbols]Load Process Symbols"   "TASK.sYmbol.LOAD track.address()"
+  MENUITEM "[:symbols]Delete Process Symbols" "TASK.sYmbol.DELete track.address()"
+  MENUITEM "[:symbols]Add Libraries to Symbol Autoloader"
+  (
+    TASK.sYmbol.Option AutoLoad ProcLib track.address()
+    sYmbol.AutoLOAD.CHECK
+  )
+  MENUITEM "Add to Watched Processes"
+  (
+      &address=address.offset(track.address())
+      TASK.Watch.View &address
+  )
+  MENUITEM "Delete from Watched Processes" "TASK.Watch.DELete track.address()"
+  SEPARATOR
+  MENUITEM "[:mmu]Display Task MMU Table"
+  (
+    &address=address.offset(track.address())
+    MMU.List TaskPageTable &address
+  )
+  SEPARATOR
+  MENUITEM "[:dump]Dump task ENTRY"
+  (
+    &address=task.proc.tcb(address.offset(track.address()))
+    Data.dump &address /l /DIALOG
+  )
+  SEPARATOR
+  MENUITEM "Kill task"
+  (
+    LOCAL &rkmagic &rktname
+    &rkmagic=task.proc.tcb(address.offset(track.address()))
+    &rktname=task.proc.name(&rkmagic)
+    DIALOG.YESNO "Really kill task &rktname?"
+    ENTRY &yn
+    IF &yn
+    (
+      Var.Set ((struct task_struct)*&rkmagic).pending.signal.sig[0]=0x100
+
+
+      Var.Set ((struct thread_info)*(((struct task_struct)*&rkmagic)).stack).flags=1
+
+      PRINT "Signal SIGKILL sent to task &rktname"
+    )
+  )
+  SEPARATOR
+  ENABLE (Analyzer()||Onchip())&&(ETM()||COMPonent.AVAILABLE("ETM"))
+  MENUITEM "[:alist]Trace this task"
+  (
+    LOCAL &magic
+    IF STATE.RUN()
+      Break
+    &magic=address.offset(track.address())
+    &sid=task.proc.magic2sid(&magic)
+    LOCAL &cc &endaddr
+    &cc=0
+    &endaddr=0xffffffff
+    IF ETM()
+      &cc=ETM.CONTEXTCOMP()
+    IF CPUIS64BIT()
+      &endaddr=0xffffffffffffffff
+    IF &cc>0
+    (
+      TrOnchip.ContextID ON
+      Break.Set &sid:0--&endaddr /Program /TraceEnable /TASK &magic
+    )
+    ELSE
+    (
+      Break.Set task.config(magic) /Write /Data &magic /TraceON
+      Break.Set task.config(magic) /Write /Data !&magic /TraceOFF
+    )
+  )
+)
+
+
+MENU "task.mod"
+(
+  DEFAULT
+  ;(
+  ;  &address=address.offset(track.address())
+  ;  TASK.MODule &address
+  ;)
+  MENUITEM "[:var]Display module struct"
+  (
+    &address=task.mod.mcb(address.offset(track.address()))
+    Var.View %m %s (struct module)*&address
+  )
+  SEPARATOR
+  MENUITEM "[:symbols]Load Module Symbols"
+  (
+    TASK.sYmbol.Option AutoLoad Module
+    TASK.sYmbol.LOADMod track.address()
+  )
+  MENUITEM "[:symbols]Delete Module Symbols" "TASK.sYmbol.DELeteMod track.address()"
+  SEPARATOR
+  MENUITEM "[:dump]Dump module ENTRY"
+  (
+    &address=address.offset(track.address())
+    Data.dump &address /l /DIALOG
+  )
+)
+
+
+MENU "task.fs.t"
+(
+  DEFAULT
+  MENUITEM "[:objects]Display detailed"
+  (
+    &address=address.offset(track.address())
+    TASK.FS.Types &address
+  )
+  MENUITEM "[:var]Display type struct"
+  (
+    &address=address.offset(track.address())
+    Var.View %m %s (struct file_system_type)*&address
+  )
+  SEPARATOR
+  MENUITEM "[:dump]Dump type ENTRY"
+  (
+    &address=address.offset(track.address())
+    Data.dump &address /l /DIALOG
+  )
+)
+
+
+MENU "task.fs.md"
+(
+  DEFAULT
+  MENUITEM "[:objects]Display detailed"
+  (
+    &address=address.offset(track.address())
+    TASK.FS.MountDevs &address
+  )
+  MENUITEM "[:var]Display superblock struct"
+  (
+    &address=address.offset(track.address())
+    Var.View %m %s (struct super_block)*&address
+  )
+  SEPARATOR
+  MENUITEM "[:dump]Dump superblock ENTRY"
+  (
+    &address=address.offset(track.address())
+    Data.dump &address /l /DIALOG
+  )
+)
+
+
+MENU "task.fs.proc"
+(
+  ;DEFAULT
+  ;MENUITEM "Display detailed"
+  ;(
+  ;  &address=address.offset(track.address())
+  ;  TASK.FS.PROC &address
+  ;)
+  MENUITEM "[:var]Display proc struct"
+  (
+    &address=address.offset(track.address())
+    Var.View %m %s (struct proc_dir_entry)*&address
+  )
+  SEPARATOR
+  MENUITEM "[:dump]Dump proc dir ENTRY"
+  (
+    &address=address.offset(track.address())
+    Data.dump &address /l /DIALOG
+  )
+)
+
+
+MENU "task.fs.m"
+(
+  DEFAULT
+  ;MENUITEM "Display detailed"
+  ;(
+  ;  &address=address.offset(track.address())
+  ;  TASK.FS.Mount &address
+  ;)
+  MENUITEM "[:var]Display mount struct"
+  (
+    &address=task.proc.tcb(address.offset(track.address()))
+
+    Var.View %o %h %s (struct mount)*&address
+
+  )
+  SEPARATOR
+  MENUITEM "[:dump]Dump mount ENTRY"
+  (
+    &address=task.proc.tcb(address.offset(track.address()))
+    Data.dump &address /l /DIALOG
+  )
+)
+
+MENU "task.fs.part"
+(
+  MENUITEM "[:var]Display disk struct"
+  (
+    &address=address.offset(track.address())
+    Var.View %m %s (struct gendisk)*&address
+  )
+)
+
+MENU "task.lib"
+(
+  DEFAULT
+  ;MENUITEM "Display detailed"
+  ;(
+  ;  &address=address.offset(track.address())
+  ;  TASK.DTask &address
+  ;)
+  MENUITEM "[:var]Display Library struct"
+  (
+    &address=address.offset(track.address())
+    Var.View %m %s (struct vm_area_struct)*&address
+  )
+  SEPARATOR
+  MENUITEM "[:symbols]Load Library Symbols"   "TASK.sYmbol.LOADLib track.string() track.address()"
+  MENUITEM "[:symbols]Delete Library Symbols" "TASK.sYmbol.DELeteLib track.string() track.address()"
+  SEPARATOR
+  MENUITEM "[:dump]Dump Library ENTRY"
+  (
+    &address=address.offset(track.address())
+    Data.dump &address /l /DIALOG
+  )
+)
+
+
+MENU "task.w"
+(
+  DEFAULT
+  MENUITEM "[:objects]Display Process"
+  (
+    &address=address.offset(track.address())
+    TASK.DTask &address
+  )
+  MENUITEM "[:exit]Delete from List"
+  (
+    &name=track.string()
+    TASK.Watch.DELete "&name"
+  )
+)
+
+MENU "task.dmesg"
+(
+  DEFAULT
+  MENUITEM "[:var]Display log struct"
+  (
+    &address=address.offset(track.address())
+    Var.View %open (struct printk_log)*&address
+  )
+  MENUITEM "[:dump]Dump log struct"
+  (
+      &address=address.offset(track.address())
+      Data &address
+  )
+)
+
+MENU "task.dtb"
+(
+  DEFAULT
+  MENUITEM "[:objects]Display as phandle"
+  (
+    &address=address.offset(track.address())
+    TASK.DTB.PHANDLE &address
+  )
+)

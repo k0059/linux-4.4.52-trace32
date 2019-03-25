@@ -1,0 +1,149 @@
+; --------------------------------------------------------------------------------
+; @Title: Script to force page load of Linux application (Linux Awareness)
+; @Description:
+; NOTE: Linux and the Linux awareness must be up.
+;       The debugger must be halted within the process.
+;
+; Start this script with an optional parameter:
+; Parameter: patch location.
+;
+; Examples: do app_page_load
+;           do app_page_load main
+;
+;
+; @Keywords: Linux pageload paging awareness
+; @Author: DIE
+; @Copyright: (C) 1989-2017 Lauterbach GmbH, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; $Id: app_page_load.cmm 2449 2017-09-13 13:13:59Z kjmal $  
+
+ ; parameter: patch location
+ ENTRY &patchaddr
+
+ ; local variables
+ LOCAL &task &process &spaceid &magic
+ LOCAL &codeaddr &codesize &codeend
+ LOCAL &dataaddr &datasize &dataend
+ LOCAL &org_pc &org_r2 &org_r3 &org_r4
+ LOCAL &org_code1 &org_code2 &org_code3 &org_code4 
+
+ ; check if debugger is halted
+ IF STATE.RUN()
+ (
+   PRINT "Error: debugger must be halted inside process"
+   ENDDO
+ )
+
+ ; get current process and spaceid
+ &task=Data.Long(D:task.config(magic))
+ &spaceid=task.proc.magic2sid(&task)
+ &magic=task.proc.sid2magic(&spaceid)
+ &process=task.proc.name(&magic)
+ ; check for kernel space
+ IF &spaceid==0
+ (
+   PRINT "&process runs in kernel space - no pade load"
+   ENDDO
+ )
+
+ ; check process sanity
+ IF &task!=task.proc.magic("&process")
+    PRINT "Warning: &process not unique - threads or multiple processes?"
+ 
+ ; get characteristics of the desired process
+ &codeaddr=task.proc.codeaddr("&process")
+ &codesize=task.proc.codesize("&process")
+ &codeend=((&codeaddr+&codesize-1)&0xfffff000)+0x1000
+ &dataaddr=task.proc.dataaddr("&process")
+ &datasize=task.proc.datasize("&process")
+ &dataend=((&dataaddr+&datasize-1)&0xfffff000)+0x1000
+ &dataaddr=&dataaddr&0xfffff000
+ 
+ ; if not specified: patch location is current PC
+ IF ("&patchaddr"=="")
+    &patchaddr=Register(pc)
+ ELSE
+    &patchaddr=ADDRESS.OFFSET(R:&patchaddr)
+ 
+ ; force symbol loader to check function code *before* it is patched
+ ; (patched code may confuse the symbol system of TRACE32)
+ &var=sYmbol.NAME(&spaceid:&patchaddr)
+ IF "&var"!=""
+ (
+   WinPOS ,,,,,, vinfo Iconic
+   Var.INFO &var
+   PRinTer.FILE
+   WinPrint.Var.INFO &var
+   WinCLEAR vinfo
+ )
+ 
+ ; save original register contents and patched code
+ &org_pc=Register(pc)
+ &org_r2=Register(r2)
+ &org_r3=Register(r3)
+ &org_r4=Register(r4)
+ &org_code1=Data.Long(R:&spaceid:&patchaddr)
+ &org_code2=Data.Long(R:&spaceid:&patchaddr+4)
+ &org_code3=Data.Long(R:&spaceid:&patchaddr+8)
+ &org_code4=Data.Long(R:&spaceid:&patchaddr+0xc)
+ 
+ ; remove possible breakpoints at patch location
+ Break.Delete R:&patchaddr++0x13
+ 
+ ; now write loop that loads the pages
+ ; (if XScale, use D: due to cache problems)
+ Data.Assemble R:&patchaddr ldr  r2,[r3]
+ Data.Assemble ,            add  r3,r3,#0x1000
+ Data.Assemble ,            cmp  r3,r4
+ Data.Assemble ,            bne  $-0xc
+ 
+ ; set breakpoint at end of loop
+ Break.Set R:&patchaddr+0x10
+ 
+ ; set registers to code start and end address
+ Register.Set R3 &codeaddr
+ Register.Set R4 &codeend
+ 
+ ; set PC to patch address
+ Register.Set PC &patchaddr
+ 
+ ; let the patch run
+ Go.direct
+ PRINT "loading code pages of process &process at &codeaddr..."
+ WAIT !STATE.RUN()
+
+ ; set registers to data start and end address
+ Register.Set R3 &dataaddr
+ Register.Set R4 &dataend
+ 
+ ; set PC to patch address
+ Register.Set PC &patchaddr
+ 
+ ; let the patch run
+ Go.direct
+ PRINT "loading data pages of process &process at &dataaddr..."
+ WAIT !STATE.RUN()
+
+ ; delete used breakpoint
+ Break.Delete R:&patchaddr+0x10
+ 
+ ; restore code
+ Data.Set R:&patchaddr     %Long &org_code1
+ Data.Set R:&patchaddr+4   %Long &org_code2
+ Data.Set R:&patchaddr+8   %Long &org_code3
+ Data.Set R:&patchaddr+0xc %Long &org_code4
+
+ ; restore registers
+ Register.Set PC &org_pc
+ Register.Set R2 &org_r2
+ Register.Set R3 &org_r3
+ Register.Set R4 &org_r4
+ 
+ ; scan new loaded process pages
+ PRINT "scanning new pages of &process..."
+ MMU.TaskPageTable.SCAN "&process"
+ 
+ PRINT "done."
+ 
+ ENDDO
+ 

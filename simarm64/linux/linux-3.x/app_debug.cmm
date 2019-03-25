@@ -1,0 +1,498 @@
+; --------------------------------------------------------------------------------
+; @Title: Script to debug a Linux process from the start
+; @Description:
+; Application Debugging (AutoLoader version)
+;
+; This script waits for an application to be started,
+; loads the symbols and halts the application at main() or the selected label
+;
+; NOTE: Linux and the Linux awareness must be up.
+;
+; Start this script with the process name as argument to
+; run the script as command line version or use /dialog 
+; to run the script in a dialog.
+;
+; Examples: 
+;   do app_debug hello      ; waits for "hello" to be started
+;   do app_debug /dialog    ; opens a dialog window
+;
+; Prerequisites:
+; - Linux must be booted
+; - Linux awareness must be configured
+; - Symbol Autoloader must be configured
+;
+; @Keywords: Linux process awareness
+; @Author: DIE
+; @Copyright: (C) 1989-2017 Lauterbach GmbH, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; $Id: app_debug_linux.cmm 2449 2017-09-13 13:13:59Z kjmal $  
+
+; Define local macros
+ LOCAL  &para1 &para2 &para3 &para4 &para5 &para6
+ LOCAL  &process &dialog &exec &timeout
+ LOCAL  &breaklabel
+ GLOBAL &true &false &breakaddr
+ &true=(1==1)
+ &false=(1==0)
+ &breakaddr="P:0"
+ &exec=&false
+ 
+ 
+; Get the script parameters ("<name> /term /timeout <timeout> /stopat <label>" or "/dialog")
+ ENTRY &para1 &para2 &para3 &para4 &para5 &para6
+
+; Check parameters
+ IF "&para1"==""
+ (
+    ; no parameter given -> print usage
+    PRINT "Usage: ""do app_debug <processname> [/term] [/timeout <timeout>] [/stopat <label>]"" or ""do app_debug /dialog"""
+    ENDDO 1.
+ )
+ IF STRing.LoWeR("&para1")=="/dialog"
+ (
+    ; /dialog -> open a dialog to select process
+    &dialog=&true
+    &process=""
+ )
+ ELSE
+ (
+    ; parameter contains process name
+    &dialog=&false
+    &process="&para1"
+    GOSUB parse_params
+ )
+ 
+ IF "&breaklabel"==""
+   &breaklabel="main"
+ 
+; Check against TASK.Watch that interferes with this script
+ IF (TASK.WATCH.ACTIVE()==1)
+ (
+    GOSUB message "Please close TASK.Watch window" "before using this menu item"
+    ENDDO 1.
+ )
+
+
+; Activate autoloader for processes:
+ TASK.sYmbol.Option AutoLoad Process
+ 
+; Ensure windows update
+ SCREEN.ALways
+
+
+; Dialog or Command line version?
+
+ IF &dialog
+   GOTO app_dialog
+   
+; --------------------------------------------------------------------------------
+;           Command line interface
+; --------------------------------------------------------------------------------
+
+ ; Check if the process already exists in the process list.
+
+ LOCAL &existed &label
+ 
+ GOSUB checkexisting "&process"
+ RETURNVALUES &existed
+ IF &existed
+   ENDDO 2.
+   
+ ; Wait for process to be loaded.
+ ; The process must be started by executing it at the Linux console.
+
+ IF ("&exec"=="&false")
+   PRINT "Please start process &process..."
+ GOSUB waitforstart "&process" "&exec"
+
+ ; Yep! The process is loaded and we found it.
+ ; Now load the process symbols.
+
+ PRINT "process &process started, loading symbols..."
+ GOSUB loadsymbols "&process"
+ RETURNVALUES &label
+ IF "&label"==""
+    ENDDO 1.
+
+ ; We got the main entry point of the process.
+ ; We let the system run until it reaches main().
+
+ PRINT "waiting for reaching &label..."
+ GOSUB waitforlabel "&process" "&label"
+ 
+ // That's it, we halted at the selected label!
+
+ PRINT "done."
+
+ ENDDO 0.
+ 
+; -------------------------------------------------------------------------------- 
+;            Dialog interface
+; --------------------------------------------------------------------------------
+
+app_dialog:
+ DIALOG.view
+ (
+        HEADER "Debug New Process..."
+        POS 0. 0. 24. 5.
+        BOX "process name"
+        POS 1. 1. 22. 1.
+proc:   DEFHOTEDIT "" 
+        (
+            IF DIALOG.STRing(proc)!=""
+                DIALOG.Enable bok
+            ELSE
+                DIALOG.Disable bok
+        )
+        POS 0. 2. 24. 0.
+        BOX "stop at"
+        POS 1. 3. 22. 1.
+stopl:  EDIT "main" "&breaklabel=DIALOG.STRING(stopl)"
+        POS 1. 5. 22. 1.
+exec:   CHECKBOX "send command to TERM window" ""
+        POS 2. 6.5 8.
+bok:    DEFBUTTON "Ok"
+        (
+            LOCAL &process &existed &label
+            DIALOG.Disable bok
+            DIALOG.Disable proc
+            &process=DIALOG.STRing(proc)
+            DIALOG.Set mess "Checking process &process..."
+            
+            GOSUB checkexisting "&process"
+            RETURNVALUES &existed
+            IF &existed
+                JUMPTO winclose
+
+            DIALOG.Set mess "Please start process &process"
+            
+            &exec=DIALOG.BOOLEAN(exec)
+            GOSUB waitforstart "&process" "&exec"
+
+            DIALOG.Set mess "Process &process started. Loading symbols..."
+
+            GOSUB loadsymbols "&process"
+            RETURNVALUES &label
+            IF "&label"==""
+                JUMPTO winclose
+
+            DIALOG.Set mess "Waiting for reaching &label..."
+
+            GOSUB waitforlabel "&process" "&label"
+            
+            JUMPTO winclose
+        )
+        POS 14. 6.5 8.
+        BUTTON "Cancel" "JUMPTO winclose"
+        POS 0. 8. 24. 1.
+mess:   EDIT "Please enter process name" ""
+        close "JUMPTO winclose"
+ )
+
+ DIALOG.Disable bok
+ DIALOG.Disable mess
+
+ STOP
+ 
+winclose:
+
+ IF ADDRESS.OFFSET(&breakaddr)!=0
+ (
+    IF STATE.RUN()
+        Break.direct
+    Break.Delete &breakaddr
+    ON PBREAKAT ADDRESS.OFFSET(&breakaddr)
+    &breakaddr="P:0"
+ )
+ 
+ DIALOG.END
+ ENDDO 0.
+
+; --------------------------------------------------------------------------------
+;           Subroutine: Check if process already exists
+; --------------------------------------------------------------------------------
+
+checkexisting:
+ PARAMETERS &process
+ IF run()
+    Break.direct
+    
+ IF (TASK.PROC.SPACEID("&process")&0xFFFFFFFF)!=0xFFFFFFFF
+ (
+    sYmbol.AutoLOAD.CLEAR "&process"
+    sYmbol.AutoLOAD.CHECK
+    sYmbol.AutoLOAD.TOUCH "&process"
+    IF sYmbol.EXIST(\\&process)
+        GOSUB message "Process &process already running." "Symbols loaded."
+    ELSE
+        GOSUB message "Process &process already running." "No symbol file found."
+    RETURN "&true"
+ )
+
+; Delete possibly existing breakpoints of previous process runs
+ 
+ IF sYmbol.EXIST("\\&process")
+   Break.Delete sYmbol.SECRANGE(\\&process\.text)
+
+ RETURN "&false"
+ 
+; -------------------------------------------------------------------------------- 
+;           Subroutine: Wait for start of process 
+; --------------------------------------------------------------------------------
+
+waitforstart:
+ PARAMETERS &process &exec
+
+; Wait for process to be loaded.
+; The process must be started by executing it at the Linux console.
+
+ // We cannot load process symbols as long as we don't
+ // know the address translation. The MMU for the new
+ // process is set up.
+
+ ; the conditional breakpoint halts only, if the desired
+ ; process is found in the process table.
+
+
+&breakaddr=set_binfmt
+
+
+ Break.Delete &breakaddr                ; delete previous set breakpoints
+ Break.Set &breakaddr /CONDition TASK.CURRENT.IS("&process")==1
+ 
+ ON PBREAKAT ADDRESS.OFFSET(&breakaddr) GOTO continue1  ; if breakpoint reached: continue
+ IF ("&timeout"!="")
+   ON TIme &timeout GOTO timeout1       ; if breakpoint is not reached in time
+   
+ Go.direct         ; let the target run and load the process
+ 
+ IF &exec
+    TERM.Out "&process" 0x0a
+ STOP       ; halt script until breakpoint reached
+ 
+ ; breakpoint hit, continue script
+continue1:
+ Break.Delete &breakaddr    // delete breakpoint
+ ON PBREAKAT ADDRESS.OFFSET(&breakaddr)     // delete script action
+ &breakaddr="P:0"
+
+ &magic=task.current(process)
+ Break.Set VAR.ADDRESS(((struct task_struct)*&magic).mm->start_data) /Write
+ GO
+ WAIT !STATE.RUN()
+ Break.DELete VAR.ADDRESS(((struct task_struct)*&magic).mm->start_data) /Write
+
+ IF ("&timeout"!="")
+   ON TIme                  // delete timeout action
+
+ RETURN
+
+; breakpoint not hit, stop upon timeout
+timeout1:
+
+ IF STATE.RUN()
+ (
+   Break.direct
+   Break.Delete &breakaddr    // delete breakpoint
+   Go.direct
+ )
+ ELSE
+   Break.Delete &breakaddr    // delete breakpoint
+ &breakaddr="P:0"
+
+ ON PBREAKAT ADDRESS.OFFSET(&breakaddr)     // delete script action
+ ON TIme                    // delete timeout action
+ 
+
+GOSUB message "Error: breakpoint on free_bprm not reached after timeout of &timeout"
+
+
+ ENDDO 1.
+
+; --------------------------------------------------------------------------------
+;           Subroutine: Load symbols of process 
+; --------------------------------------------------------------------------------
+
+
+loadsymbols:
+ LOCAL &process &label
+ PARAMETERS &process
+
+&label="&breaklabel"
+
+; Yep! The process is loaded and we found it.
+
+; Now load the process symbols to the space id of the process
+
+ sYmbol.AutoLOAD.CLEAR "&process"   ; clear possibly previous set
+ sYmbol.AutoLOAD.CHECK              ; force new autoloader list
+ sYmbol.AutoLOAD.TOUCH "&process"   ; force loading of process symbols
+ 
+
+// Now set a breakpoint at the label &label
+ 
+ // NOTE: The code is still not available, so we MUST set 
+ // onchip breakpoints, because those are the only ones
+ // operating on virtual addresses
+
+ // There may be multiple symbols with the name of our &label in the system,
+ // we're searching for the right one.
+ 
+ IF sYmbol.COUNT(\\&process\*\&label)==0
+ (
+   ; try without filename extension
+   &process=STRing.CUT("&process",-STRing.LENgth(OS.FILE.EXTENSION("&process")))
+   IF sYmbol.COUNT(\\&process\*\&label)==0
+   (
+     GOSUB message "Symbol '&label' of process &process not found"
+     RETURN     ; return with empty return parameter
+   )
+ )
+   
+ sYmbol.ForEach "eval ""*""" \\&process\*\&label
+ &label=EVAL.STRing()
+ 
+ RETURN "&label"
+ 
+; -------------------------------------------------------------------------------- 
+;         Subroutine: Wait for reaching the selected label
+; --------------------------------------------------------------------------------
+
+waitforlabel:
+ LOCAL &process &label &breakaddr
+ PARAMETERS &process &label
+ 
+ IF "&label"=="main"
+ (
+ ; try to set breakpoint on 1 line below main()
+ ; to let the page load (demand paging!)
+   &breakaddr="main\1"
+   ON ERROR GOTO wfm_noline
+ )
+ ELSE
+ (
+   &breakaddr=&label
+ )
+ Break.Set &breakaddr /Onchip /Task "&process"
+ GOTO wfm_setevent
+ 
+wfm_noline:
+
+ ; settint BP on main + 1 line failed, probably no debug symbols
+ ; try direct main
+
+ &breakaddr="&main"
+ ON ERROR ; remove error handler
+ Break.Set &breakaddr /Onchip /Task "&process"
+
+wfm_setevent:
+
+ ; if breakpoint reached: continue
+ ON PBREAKAT ADDRESS.OFFSET(&breakaddr) GOTO wfm_continue
+ 
+ ; if breakpoint is not reached in time: timeout
+ IF ("&timeout"!="")
+   ON TIme &timeout GOTO wfm_timeout
+ 
+ Go.direct         ; let the target run and start the process
+
+ STOP       ; halt script until breakpoint reached
+
+ ; breakpoint hit, continue script
+wfm_continue: 
+         
+ Break.Delete &breakaddr    // delete breakpoint
+ ON PBREAKAT ADDRESS.OFFSET(&breakaddr)     // delete script action
+ &breakaddr=0
+ IF ("&timeout"!="")
+   ON TIme                  // delete timeout action
+
+ ; reload process symbols to get correct address range
+ 
+ //sYmbol.AutoLOAD.CHECK              ; force new autoloader list
+ //sYmbol.AutoLOAD.TOUCH "&process"   ; force loading of process symbols
+
+ RETURN
+
+; breakpoint not hit, stop upon timeout
+wfm_timeout:
+
+ LOCAL &pc
+ IF STATE.RUN()
+ (
+   Break.direct
+   Break.Delete &breakaddr    // delete breakpoint
+   &pc=Register(pc)
+   Go.direct
+ )
+ ELSE
+ (
+   Break.Delete &breakaddr    // delete breakpoint
+   &pc=Register(pc)
+ )
+ &breakaddr="P:0"
+ 
+ ON PBREAKAT ADDRESS.OFFSET(&breakaddr)     // delete script action
+ ON TIme                    // delete timeout action
+ 
+ GOSUB message "Error: &label (at &breakaddr) of process not reached after timeout of &timeout (PC=&pc)"
+ ENDDO 1.
+
+; -------------------------------------------------------------------------------- 
+;         Subroutine: print message in dialog box or command line
+; --------------------------------------------------------------------------------
+; Subroutine: PRINT message in dialog BOX or command line
+
+message:
+ LOCAL &msg1 &msg2
+ ENTRY &msg1 &msg2
+ IF &dialog
+    DIALOG.OK "&msg1 &msg2"
+ ELSE
+    PRINT "&msg1 &msg2"
+ RETURN
+ 
+  
+; -------------------------------------------------------------------------------- 
+;         Subroutine: parse script parameters
+; --------------------------------------------------------------------------------
+
+get_argument:
+  LOCAL &i &arg
+  ENTRY &i
+  &arg="&"+"para"+"&i"
+  &arg=STRing.CUT("&arg",-1)
+  RETURN &arg
+
+parse_params:
+  LOCAL &arg &i
+  &i=2.
+  RePeaT
+  (
+    &&arg=STRING.CUT("&para&i",-1) 
+    IF "&arg"==""
+      RETURN
+    IF STRing.LoWeR("&arg")=="/term"
+    (
+      &exec=&true
+    )
+    IF STRing.LoWeR("&arg")=="/timeout"
+    (
+      &i=&i+1
+      &&arg=STRING.CUT("&para&i",-1) 
+      &timeout="&arg"
+      IF ("&timeout"=="")||("&timeout"<="0")
+      (
+        PRINT "Syntax error: missing or illegal timeout parameter"
+        ENDDO 1.
+      )
+    )
+    IF STRing.LoWeR("&arg")=="/stopat"
+    (
+      &i=&i+1
+      &&arg=STRING.CUT("&para&i",-1) 
+      &breaklabel="&arg"
+    )
+    &i=&i+1
+  )
+  WHILE &i<=6

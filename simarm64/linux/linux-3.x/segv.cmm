@@ -1,0 +1,187 @@
+; --------------------------------------------------------------------------------
+; @Title: Segv Script (Linux-3.x Awareness)
+; @Description:
+; Script to investigate segmentation violations and other faults
+; see Linux Awareness Manual, chapter
+;     "Debugging Linux"->"Trapping Segmentation Violation"
+;
+; Call this script to set the appropriate breakpoints
+; and call it again to set the register set to the place
+; where the fault happened.
+;
+; The registers are set temporarily; as soon as debugging
+; is continued (Step, Go, ...), the original registers
+; are restored.
+;
+; see arch/arm/mm/fault.c
+;
+; This script does not use sYmbol.EXIT/ADDRESS.OFFSET functions directly as the
+; GCC LinkTimeOptimizer LTO might append strings like .isra .constprop .part
+; and others to the optimized symbol names. We use sYmbol.FindALL to find the
+; first symbol matching the pattern "<symbolname>*"
+;
+; @Keywords: Linux segv awareness
+; @Author: DIE AME
+; @Copyright: (C) 1989-2017 Lauterbach GmbH, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; $Id: segv.cmm 2449 2017-09-13 13:13:59Z kjmal $
+
+LOCAL &version &fault1 &fault2 &die
+
+IF STATE.RUN()
+(
+  PRINT "target running - please stop target before calling this script"
+  ENDDO
+)
+
+; get addresses of page fault
+
+&version=task.os.version()
+IF &version==0x02061d
+(
+  ; 2.6.29
+  &fault1=ADDRESS.OFFSET(do_bad_area+0x10)      ; +0x10 to set up local variables
+  &fault2=ADDRESS.OFFSET(do_page_fault+0x18c)   ; inlined __do_user_fault()
+  Break.Set &fault1
+  Break.Set &fault2
+)
+ELSE
+(
+  ; find symbols possibly optimized by LTO
+  GOSUB FindSymbolLto "__do_user_fault"
+  ENTRY &fault1
+  GOSUB FindSymbolLto "__do_kernel_fault"
+  ENTRY &fault2
+  IF "&fault1"!="0x0"
+  (
+    &fault1=ADDRESS.OFFSET(&fault1)+0x18        ; +0x18 to set up local variables
+    Break.Set &fault1
+  )
+  ELSE
+  (
+    PRINT %ERROR "Error: Symbol ""__do_user_fault"" not found"
+  )
+
+  IF "&fault2"!="0x0"
+  (
+    &fault2=ADDRESS.OFFSET(&fault2)+0x10
+    Break.Set &fault2
+  )
+  ELSE
+  (
+    PRINT %ERROR "Error: Symbol ""__do_kernel_fault"" not found"
+  )
+)
+
+
+; kernel oops (die)
+GOSUB FindSymbolLto "die"
+ENTRY &die
+if "&die"!="0x0"
+(
+  &die=ADDRESS.OFFSET(&die)+0x38
+  Break.Set &die
+)
+ELSE
+(
+  PRINT %ERROR "Error: Symbol ""die"" not found"
+)
+
+; kernel panic
+GOSUB FindSymbolLto "panic"
+ENTRY &panic
+if "&panic"!="0x0"
+(
+  &panic=ADDRESS.OFFSET(&panic)
+  Break.Set &panic
+)
+ELSE
+(
+  PRINT %ERROR "Error: Symbol ""panic"" not found"
+)
+
+; if halted on segmentation violation
+IF (Register(pc)==&fault1)||(Register(pc)==&fault2)
+(
+   PRINT "failed at 0x" Var.VALUE(regs.uregs[15])
+   GOSUB swap_registers
+   ENDDO
+)
+
+; if halted on kernel oops (die)
+IF Register(pc)==&die
+(
+   PRINT Var.STRing(str) " at 0x" Var.VALUE(regs.uregs[15])
+   GOSUB swap_registers
+   ENDDO
+)
+
+ENDDO
+
+
+swap_registers:
+  ; set register set temporarily to faulty state
+
+  LOCAL &r0  &r1  &r2  &r3  &r4  &r5  &r6  &r7
+  LOCAL &r8  &r9  &r10 &r11 &r12 &r13 &r14
+  LOCAL &pc  &cpsr
+  LOCAL &i
+
+  ; first get all register values from local variable "regs"
+
+  &i=0.
+  WHILE &i<15.
+  (
+    ; collect all registers to script variables &r0-&r14
+    &ic=STRing.CUT("&i",-1)   ; to cut trailing dot
+    &r&ic=Var.VALUE(regs.uregs[&ic]) ; &r0=v.v(regs.uregs[0])
+    &i=&i+1
+  )
+  &pc=Var.VALUE(regs.uregs[15])
+  &cpsr=Var.VALUE(regs.uregs[16])
+
+  ; second write values into registers temporarily
+
+  Register.Set cpsr &cpsr /Task Temporary    ; set CPSR first! (regbank)
+  &i=0.
+  WHILE &i<15.
+  (
+    &ic=STRing.CUT("&i",-1)  ; to cut trailing dot
+    &&value=&r&ic            ; && for recursive macro parsing
+    Register.Set r&ic &value /Task Temporary  ; r.s r0 &r0
+    &i=&i+1
+  )
+  Register.Set pc &pc /Task Temporary
+
+  RETURN
+
+; find a symbol possibly optimized by the LinkTimeOptimizer LTO
+FindSymbolLto: ;(symbolname)
+  LOCAL &foundsymbol
+  PRIVATE &symbolname
+  PARAMETERS &symbolname
+; obsolete since DVD 09/2015:  PARAMS &symbolname
+  &foundsymbol=0x0
+  ; real magic starts here
+  &symbolname="&symbolname*"
+  ON ERROR GOTO NoSymbolFound
+  sYmbol.ForEach "GOSUB CheckLTOPath *" &symbolname
+NoSymbolFound:
+  ON ERROR inherit
+  PRINT ""
+  RETURN &foundsymbol
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+CheckLTOPath: ;(name)
+  LOCAL &name
+  ENTRY &name
+
+  IF "&foundsymbol"=="0x0"
+    &foundsymbol=&name
+  ELSE
+    PRINT "Warning: Multiple Symbols found"
+  RETURN
+
+
+
