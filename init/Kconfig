@@ -1308,12 +1308,20 @@ source "usr/Kconfig"
 
 endif
 
+
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size"
+	depends on !CC_CLOSE_OPTIMIZATION
 	help
 	  Enabling this option will pass "-Os" instead of "-O2" to
 	  your compiler resulting in a smaller kernel.
 
+	  If unsure, say N.
+
+config CC_CLOSE_OPTIMIZATION
+	bool "close Optimize for debug"
+	help
+	  Enabling this option will no pass "-O2" to gcc.
 	  If unsure, say N.
 
 config SYSCTL
