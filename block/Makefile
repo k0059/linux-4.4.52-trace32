@@ -23,3 +23,7 @@ obj-$(CONFIG_BLOCK_COMPAT)	+= compat_ioctl.o
 obj-$(CONFIG_BLK_CMDLINE_PARSER)	+= cmdline-parser.o
 obj-$(CONFIG_BLK_DEV_INTEGRITY) += bio-integrity.o blk-integrity.o t10-pi.o
 
+ifdef CONFIG_CC_CLOSE_OPTIMIZATION
+CFLAGS_blk-throttle.o	+= -O2
+CFLAGS_blk-integrity.o	+= -O2
+endif

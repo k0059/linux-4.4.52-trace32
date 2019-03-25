@@ -19,3 +19,11 @@ obj-$(CONFIG_SCHED_AUTOGROUP) += auto_group.o
 obj-$(CONFIG_SCHEDSTATS) += stats.o
 obj-$(CONFIG_SCHED_DEBUG) += debug.o
 obj-$(CONFIG_CGROUP_CPUACCT) += cpuacct.o
+
+
+ifdef CONFIG_CC_CLOSE_OPTIMIZATION
+CFLAGS_core.o	+= -O2
+CFLAGS_fair.o	+= -O2
+CFLAGS_rt.o	+= -O2
+CFLAGS_deadline.o	+= -O2
+endif

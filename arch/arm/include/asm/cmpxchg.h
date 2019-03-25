@@ -106,7 +106,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 #endif
 	default:
 		/* Cause a link-time error, the xchg() size is not supported */
-		__bad_xchg(ptr, size), ret = 0;
+		//__bad_xchg(ptr, size), ret = 0;
 		break;
 	}
 
@@ -199,7 +199,7 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 		} while (res);
 		break;
 	default:
-		__bad_cmpxchg(ptr, size);
+		//__bad_cmpxchg(ptr, size);
 		oldval = 0;
 	}
 

@@ -126,3 +126,11 @@ obj-y				+= exofs/ # Multiple modules
 obj-$(CONFIG_CEPH_FS)		+= ceph/
 obj-$(CONFIG_PSTORE)		+= pstore/
 obj-$(CONFIG_EFIVAR_FS)		+= efivarfs/
+
+
+ifdef CONFIG_CC_CLOSE_OPTIMIZATION
+CFLAGS_fs-writeback.o	+= -O2
+CFLAGS_binfmt_elf.o	+= -O2
+CFLAGS_dax.o	+= -O2
+endif
+

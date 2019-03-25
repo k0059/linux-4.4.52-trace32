@@ -480,13 +480,20 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  * supplied condition is *false*, emitting the supplied error message if the
  * compiler has support to do so.
  */
+#ifdef CONFIG_CC_CLOSE_OPTIMIZATION
+#define compiletime_assert(condition, msg)
+#else
 #define compiletime_assert(condition, msg) \
 	_compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+#endif
 
+#ifdef CONFIG_CC_CLOSE_OPTIMIZATION
+#define compiletime_assert_atomic_type(t)
+#else
 #define compiletime_assert_atomic_type(t)				\
 	compiletime_assert(__native_word(t),				\
 		"Need native word sized stores/loads for atomicity.")
-
+#endif
 /*
  * Prevent the compiler from merging or refetching accesses.  The compiler
  * is also forbidden from reordering successive instances of ACCESS_ONCE(),
