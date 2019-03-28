@@ -200,7 +200,7 @@ TRANSlation.ON                                       ; switch on debugger(!) add
 TASK.CONFIG ~~/linux/linux-3.x/linux3.t32
 MENU.ReProgram ~~/linux/linux-3.x/linux.men
 
-SYMBOL.SPATH.TRANSLATE "\build\" "Y:\"
+SYMBOL.SPATH.TRANSLATE "\build\" "..\..\"
 
 PRINT "Configure Terminal"
 TERM.SIZE 80. 1000.
