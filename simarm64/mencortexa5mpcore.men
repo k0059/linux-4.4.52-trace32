@@ -1,0 +1,42 @@
+add
+
+menu
+(
+  popup "CortexA5MPCORE"
+  (
+    menuitem "[:mmureg]MMU Control" "MMU"
+    popup "[:mmu]MMU Display"
+    (
+      menuitem "[:mmu]MMU Table Dump" "MMU.PageTable.DUMP"
+      menuitem "[:mmu]MMU Table List" "MMU.PageTable.List"
+      separator
+      menuitem "[:mmu]ITLB Dump" "MMU.ITLB.DUMP"
+      menuitem "[:mmu]DTLB Dump" "MMU.DTLB.DUMP"
+      menuitem "[:mmu]TLB0 Dump (Associative)" "MMU.TLB0.DUMP"
+      menuitem "[:mmu]TLB1 Dump (Lockable)" "MMU.TLB1.DUMP"
+    )
+    popup "[:cache]Cache Display"
+    (
+      menuitem "[:cache]ICACHE Dump" "CACHE.DUMP IC"
+      menuitem "[:cache]ICACHE List" "CACHE.List IC"
+      menuitem "[:cache]ICACHE List Functions" "CACHE.ListFunc"
+      separator
+      menuitem "[:cache]DCACHE Dump" "CACHE.DUMP DC"
+      menuitem "[:cache]DCACHE List" "CACHE.List DC"
+      menuitem "[:cache]DCACHE List Variables" "CACHE.ListVar"
+    )
+    separator
+    menuitem "[:chip]ID Registers" "per , ""ID Registers"""
+    menuitem "[:chip]System Control and Configuration" "per , ""System Control and Configuration"""
+    menuitem "[:chip]Memory Management Unit" "per , ""Memory Management Unit"""
+    menuitem "[:chip]Cache Control and Configuration" "per , ""Cache Control and Configuration"""
+    menuitem "[:chip]System Performance Monitor" "per , ""System Performance Monitor"""
+    menuitem "[:chip]Debug Registers" "per , ""Debug Registers"""
+    menuitem "[:chip]Breakpoint Registers" "per , ""Breakpoint Registers"""
+    menuitem "[:chip]Watchpoint Control Registers" "per , ""Watchpoint Control Registers"""
+    menuitem "[:chip]Snoop Control Unit (SCU)" "per , ""Snoop Control Unit (SCU)"""
+    menuitem "[:chip]Distributed Interrupt Controller" "per , ""Distributed Interrupt Controller"""
+    menuitem "[:chip]Interface Registers" "per , ""Interface Registers"""
+    menuitem "[:chip]Timer and Watchdog Blocks" "per , ""Timer and Watchdog Blocks"""    
+  )
+)

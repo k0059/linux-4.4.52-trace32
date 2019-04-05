@@ -94,11 +94,11 @@ TrOnchip.Set IRQ OFF
 SIM.CACHE.ON
 
 PRINT "Load the Linux code"
-Data.LOAD.ELF ~~~~/out/vmlinux 0x80008000-0xC0008000 /NoSYMBOL
+Data.LOAD.ELF ../out/vmlinux 0x80008000-0xC0008000 /NoSYMBOL
 PRINT "Load dtb"
-Data.LOAD.binary ~~~~/trace32_simulator.dtb 0xAFF00000
+Data.LOAD.binary ../trace32_simulator.dtb 0xAFF00000
 PRINT "Load ramdisk"
-Data.LOAD.binary ~~~~/ramdisk.ext2 0xA0000000 /noclear 
+Data.LOAD.binary ../ramdisk.ext2 0xA0000000 /noclear 
 
 PRINT "Configure CPU Registers Values"
 Register.RESet
@@ -187,7 +187,7 @@ IF CONVert.TOLOWER("&cpu_selection")=="cortexa5"
 )
 
 PRINT "loading Linux kernel symbols..."
-Data.LOAD.ELF ~~~~/out/vmlinux /nocode
+Data.LOAD.ELF ../out/vmlinux /nocode
 
 print "initializing debugger MMU..."
 MMU.FORMAT LINUX swapper_pg_dir 0xc0000000--0xffffffff 0x80000000

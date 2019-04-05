@@ -1,0 +1,196 @@
+; --------------------------------------------------------------------------------
+; @Title: Cortex-A5 On-Chip Peripherals
+; @Props: Released
+; @Author: PEG
+; @Changelog: 2008-09-17 PEG
+; @Manufacturer: ARM - ARM Ltd.
+; @Doc: DDI0433A_cortex_a5_r0p0_trm.pdf
+; @Core: Cortex-A5
+; @Chip: CORTEX-A5
+; @Copyright: (C) 1989-2015 Lauterbach GmbH, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; $Id: percortexa5m.per 5094 2014-04-02 21:52:08Z servera $
+
+
+config 16. 8.
+width 0x0b
+
+
+width 0x8
+group.long c15:0x1++0x0
+    line.long 0x0 "SCTLR,Control Register"
+        bitfld.long 0x0 30. " TE      ,Thumb exception enable" "ARM,Thumb"
+        bitfld.long 0x0 29. "        AFE     ,Access Flag Enable" "Disabled,Enabled"
+        bitfld.long 0x0 28. "     TRE      ,TEX remap enable" "Disabled,Enabled"
+        textline "                 "
+        bitfld.long 0x0 27. " NMFI    ,DNonmaskable Fast Interrupt enable" "Disabled,Enabled"
+        bitfld.long 0x0 25. "     EE      ,Exception endianess" "Little,Big"
+        bitfld.long 0x0 14. "       RR       ,Replacement strategy for caches, BTAC, and micro TLBs" "Random,Round robin"
+        textline "                 "
+        bitfld.long 0x0 13. " V       ,Base Location of Exception Registers" "0x00000000,0xFFFF0000"
+        bitfld.long 0x0 12. "   I       ,Instruction Cache Enable" "Disabled,Enabled"
+        bitfld.long 0x0 11. "     Z        ,Branch Prediction Enable" "Disabled,Enabled"
+        textline "                 "
+        bitfld.long 0x0 10. " SW      ,SWP/SWPB Enable" "Disabled,Enabled"
+        bitfld.long 0x0 2. "     C       ,Enable unified cache or data cache" "Disabled,Enabled"
+        bitfld.long 0x0 1. "     A        ,Strict Alignment" "Disabled,Enabled"
+        textline "                 "
+        bitfld.long 0x0 0. " M       ,MMU or Protection Unit" "Disabled,Enabled"      
+    textline " "
+    
+group.long c15:0x0002++0x00
+    line.long 0x00 "TTBR0,Translation Table Base Register 0"
+        hexmask.long 0x00 14.--31. 0x4000 " TTB0    ,Translation Table Base Address"
+        bitfld.long 0x00 6. 0. "                IRGN[1:0] ,Indicates inner cacheability" "Noncacheable,Back/allocated,Through,Back/not allocated"
+        textline "                 "
+        bitfld.long 0x00 3.--4. " RGN     ,Outer Cacheable Attributes for Page Table Walking" "Noncacheable,Back/allocated,Through,Back/not allocated"
+        bitfld.long 0x00 1. "      S         ,Page Table Walk to Shared Memory" "Nonshared,Shared"
+group.long c15:0x0102++0x00
+    line.long 0x00 "TTBR1,Translation Table Base Register 1"
+        hexmask.long 0x00 14.--31. 0x4000 " TTB1    ,Translation Table Base Address"
+        bitfld.long 0x00 6. 0. "                IRGN[1:0] ,Indicates inner cacheability" "Noncacheable,Back/allocated,Through,Back/not allocated"
+        textline "                 "
+        bitfld.long 0x00 3.--4. " RGN     ,Outer Cacheable Attributes for Page Table Walking" "Noncacheable,Back/allocated,Through,Back/not allocated"
+        bitfld.long 0x00 1. "      S         ,Page Table Walk to Shared Memory" "Nonshared,Shared"
+group.long c15:0x0202++0x00
+    line.long 0x00 "TTBCR,Translation Table Base Control Register"
+         bitfld.long 0x00 5. " PD1     ,Page Table Walk on a TLB Miss When Using Translation Table Base Register 1" "Enable,Disable"
+         bitfld.long 0x00 4. "  PD0  ,Page Table Walk on a TLB Miss When Using Translation Table Base Register 0" "Enable,Disable"
+         bitfld.long 0x0 0.--2. "   N    ,Translation Table Base Register 0 page table boundary size" "Off,0x80000000,0x40000000,0x20000000,0x10000000,0x08000000,0x04000000,0x02000000"
+    textline " "
+    
+group.long c15:0x3--0x3 
+ line.long 0x0 "DACR,Domain Access Control Register"
+  bitfld.long 0x0 30.--31. " D15  ,Domain Access 15" "Denied,Client,Reserved,Manager"
+  bitfld.long 0x0 28.--29. "  D14 ,Domain Access 14" "Denied,Client,Reserved,Manager"
+  bitfld.long 0x0 26.--27. "  D13 ,Domain Access 13" "Denied,Client,Reserved,Manager"
+  bitfld.long 0x0 24.--25. "  D12 ,Domain Access 12" "Denied,Client,Reserved,Manager"
+ textline "                 "
+  bitfld.long 0x0 22.--23. " D11  ,Domain Access 11" "Denied,Client,Reserved,Manager"
+  bitfld.long 0x0 20.--21. "  D10 ,Domain Access 10" "Denied,Client,Reserved,Manager"
+  bitfld.long 0x0 18.--19. "  D9  ,Domain Access 9" "Denied,Client,Reserved,Manager"
+  bitfld.long 0x0 16.--17. "  D8  ,Domain Access 8" "Denied,Client,Reserved,Manager"
+ textline "                 "
+  bitfld.long 0x0 14.--15. " D7   ,Domain Access 7" "Denied,Client,Reserved,Manager"
+  bitfld.long 0x0 12.--13. "  D6  ,Domain Access 6" "Denied,Client,Reserved,Manager"
+  bitfld.long 0x0 10.--11. "  D5  ,Domain Access 5" "Denied,Client,Reserved,Manager"
+  bitfld.long 0x0 8.--9. "  D4  ,Domain Access 4" "Denied,Client,Reserved,Manager"
+ textline "                 "
+  bitfld.long 0x0 6.--7. " D3   ,Domain Access 3" "Denied,Client,Reserved,Manager"
+  bitfld.long 0x0 4.--5. "  D2  ,Domain Access 2" "Denied,Client,Reserved,Manager"
+  bitfld.long 0x0 2.--3. "  D1  ,Domain Access 1" "Denied,Client,Reserved,Manager"
+  bitfld.long 0x0 0.--1. "  D0  ,Domain Access 0" "Denied,Client,Reserved,Manager"
+    textline " "
+    
+group.long c15:0x0005++0x00
+    line.long 0x00 "DFSR,Data Fault Status Register"
+        bitfld.long 0x00 12. " EXT     ,External Abort Qualifier" "DECERR,SLVERR"
+        bitfld.long 0x00 11. "                  RW        ,Access Caused an Abort Type" "Read,Write"
+        textline "                 "
+        bitfld.long 0x00 4.--7. " DOMAIN  ,Domain Accessed When a Data Fault Occurs" "D0,D1,D2,D3,D4,D5,D6,D7,D8,D9,D10,D11,D12,D13,D14,D15"
+        bitfld.long 0x00 0.--3. 10.  "                     STATUS    ,Generated Exception Type" "Reserved,Alignment,Debug,Access/section,Instruction,Translation/section,Access/page,Translation/page,Nontranslation/synchronous external,Domain/section,Reserved,Domain/page,L1/external,Permission/section,L2/external,Permission/page,Reserved,Reserved,Reserved,Reserved,Reserved,Reserved,Asynchronous external,?..."
+group.long c15:0x0006++0x00
+    line.long 0x00 "DFAR,Data Fault Address Register"
+        hexmask.long 0x00 0.--31. 1. " DFA     ,Data Fault Address"
+group.long c15:0x0105++0x00
+    line.long 0x00 "IFSR,Instruction Fault Status Register"
+        bitfld.long 0x00 12. " SD      ,External Abort Qualifier" "DECERR,SLVERR"
+        bitfld.long 0x00 0.--3. 10. "                  STATUS    ,Generated Exception Type" "Reserved,Alignment,Debug,Access/section,Instruction,Translation/section,Access/page,Translation/page,Nontranslation/synchronous external,Domain/section,Reserved,Domain/page,L1/external,Permission/section,L2/external,Permission/page,Reserved,Reserved,Reserved,Reserved,Reserved,Reserved,Asynchronous external,?..."
+group.long c15:0x0206++0x00
+    line.long 0x00 "IFAR,Instruction Fault Address Register"
+        hexmask.long 0x00 0.--31. 1. " IFA     ,Instruction Fault Address"
+group.long c15:0x0015++0x00
+    line.long 0x00 "DAFSR,Data Auxiliary Fault Status Register"
+        hexmask.long 0x00 0.--31. 1. " DAFS    ,Data Auxiliary Fault Status"
+group.long c15:0x0115++0x00
+    line.long 0x00 "IAFSR,Instruction Auxiliary Fault Status Register"
+        hexmask.long 0x00 0.--31. 1. " IAFS    ,Instruction Auxiliary Fault Status"    
+    textline " "
+    
+group.long c15:0x0047++0x00
+    line.long 0x00 "PAR,PA Register"
+        hexmask.long 0x00 12.--31. 0x1000 " PA      ,Physical Adress"
+        bitfld.long 0x00 9. "                NS        ,Non-secure" "Not secured,Secured"
+        textline "                 "
+        bitfld.long 0x00 7. " SH      ,Shareable attribute" "Non-shareable,Shareable"
+        bitfld.long 0x00 4.--6. "           Inner     ,Signals region inner attributes" "Noncacheable,Strongly-ordered,Reserved,Device,Reserved,Write-back allocate,Write-through,Write-back"
+        textline "                 "
+        bitfld.long 0x00 2.--3. " Outer   ,Signals region outer attributes for normal memory type" "Noncacheable,Write-back allocate,Write-through,Write-back"
+        bitfld.long 0x00 1. "     SS        ,Supersection Enable bit" "Disabled,Enabled"
+        textline "                 "
+        bitfld.long 0x00 0. " F       ,Translation Successful" "Successful,No successful"
+        textline " "
+
+group.long c15:0x002A++0x0
+    line.long 0x00 "PRRR,Primary Region Remap Register"
+        bitfld.long 0x00 19. " NS1     ,Shareable Attribute Remap when S=1 for Normal Regions" "Remapped,Not remapped"
+        bitfld.long 0x00 18. "            NS0       ,Shareable Attribute Remap when S=0 for Normal Regions" "Not remapped,Remapped"
+        textline "                 "
+        bitfld.long 0x00 17. " DS1     ,Shareable Attribute Remap when S=1 for Device regions" "Remapped,Not remapped"
+        bitfld.long 0x00 16. "            DS0       ,Shareable Attribute Remap when S=0 for Device regions" "Not remapped,Remapped"
+        textline "                 "
+        bitfld.long 0x00 14.--15. " TR7     ,{TEX[0] C B} = b111 Remap" "Strongly ordered,Device,Normal,UNP"
+        bitfld.long 0x00 12.--13. "        TR6       ,{TEX[0] C B} = b110 Remap" "Strongly ordered,Device,Normal,UNP"
+        textline "                 "
+        bitfld.long 0x00 10.--11. " TR5     ,{TEX[0] C B} = b101 Remap" "Strongly ordered,Device,Normal,UNP"
+        bitfld.long 0x00 8.--9. "        TR4       ,{TEX[0] C B} = b100 Remap" "Strongly ordered,Device,Normal,UNP"
+        textline "                 "
+        bitfld.long 0x00 6.--7. " TR3     ,{TEX[0] C B} = b011 Remap" "Strongly ordered,Device,Normal,UNP"
+        bitfld.long 0x00 4.--5. "        TR2       ,{TEX[0] C B} = b010 Remap" "Strongly ordered,Device,Normal,UNP"
+        textline "                 "
+        bitfld.long 0x00 2.--3. " TR1     ,{TEX[0] C B} = b001 Remap" "Strongly ordered,Device,Normal,UNP"
+        bitfld.long 0x00 0.--1. "        TR0       ,{TEX[0] C B} = b000 Remap" "Strongly ordered,Device,Normal,UNP"
+group.long c15:0x012A++0x0
+    line.long 0x00 "NMRR,Normal Memory Remap Register"
+        bitfld.long 0x00 30.--31. " OR7     ,Outer Attribute for {TEX[0] C B} = b111 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        bitfld.long 0x00 28.--29. "  OR6       ,Outer Attribute for {TEX[0] C B} = b110 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        textline "                 "
+        bitfld.long 0x00 26.--27. " OR5     ,Outer Attribute for {TEX[0] C B} = b101 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        bitfld.long 0x00 24.--25. "  OR4       ,Outer Attribute for {TEX[0] C B} = b100 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        textline "                 "
+        bitfld.long 0x00 22.--23. " OR3     ,Outer Attribute for {TEX[0] C B} = b011 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        bitfld.long 0x00 20.--21. "  OR2       ,Outer Attribute for {TEX[0] C B} = b010 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        textline "                 "
+        bitfld.long 0x00 18.--19. " OR1     ,Outer Attribute for {TEX[0] C B} = b001 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        bitfld.long 0x00 16.--17. "  OR0       ,Outer Attribute for {TEX[0] C B} = b000 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        textline "                 "
+        bitfld.long 0x00 14.--15. " IR7     ,Inner attribute for {TEX[0] C B} = b111 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        bitfld.long 0x00 12.--13. "  IR6       ,Inner attribute for {TEX[0] C B} = b110 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        textline "                 "
+        bitfld.long 0x00 10.--11. " IR5     ,Inner attribute for {TEX[0] C B} = b101 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        bitfld.long 0x00 8.--9. "  IR4       ,Inner attribute for {TEX[0] C B} = b100 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        textline "                 "
+        bitfld.long 0x00 6.--7. " IR3     ,Inner attribute for {TEX[0] C B} = b011 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        bitfld.long 0x00 4.--5. "  IR2       ,Inner attribute for {TEX[0] C B} = b010 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        textline "                 "
+        bitfld.long 0x00 2.--3. " IR1     ,Inner attribute for {TEX[0] C B} = b001 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+        bitfld.long 0x00 0.--1. "  IR0       ,Inner attribute for {TEX[0] C B} = b000 Remap" "Noncachable,Write-back allocate,Write-through,Write-back no allocate"
+    textline " "
+
+
+
+group.long c15:0x500f++0x0
+    line.long 0x00 "TLBHR,TLB Hitmap Register"
+        bitfld.long 0x00 3. " 16MB ,16MB supersections are present in the TLB" "no,yes"
+        bitfld.long 0x00 2. " 1MB ,1MB sections are present in the TLB" "no,yes"
+        bitfld.long 0x00 1. " 16kB ,16kB pages are present in the TLB" "no,yes"
+        bitfld.long 0x00 0. " 4kB ,4kB pages are present in the TLB" "no,yes"
+    textline " "
+
+group.long c15:0x10d++0x0
+    line.long 0x0 "CONTEXT,Context ID Register"
+        hexmask.long.tbyte 0x0 8.--31. 1. " PROCID  ,Process ID"
+        hexmask.long.byte 0x0 0.--7. 1. "                  ASID      ,Application Space ID"
+group.long c15:0x020d++0x00
+    line.long 0x00 "URWTPID,User Read/Write Thread and Process ID Register"
+        hexmask.long 0x00 0.--31. 1. " URWTPID ,User Read/Write Thread and Process ID"
+group.long c15:0x030d++0x00
+    line.long 0x00 "UROTPID,User Read-Only Thread and Process ID Register"
+        hexmask.long 0x00 0.--31. 1. " UROTPID ,User Read-Only Thread and Process ID"
+group.long c15:0x040d++0x00
+    line.long 0x00 "POTPID,Privileged Only Thread and Process ID Register"
+        hexmask.long 0x00 0.--31. 1. " POTPID  ,Privileged Only Thread and Process ID"
+        
+
+
+textline " "
