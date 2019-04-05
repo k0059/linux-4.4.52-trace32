@@ -94,7 +94,3 @@ endif
 
 extra-y := $(head-y) vmlinux.lds
 
-
-ifdef CONFIG_CC_CLOSE_OPTIMIZATION
-CFLAGS_swp_emulate.o	+= -O2
-endif

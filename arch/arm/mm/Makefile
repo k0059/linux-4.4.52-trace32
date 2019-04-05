@@ -106,8 +106,3 @@ obj-$(CONFIG_CACHE_TAUROS2)	+= cache-tauros2.o
 obj-$(CONFIG_CACHE_UNIPHIER)	+= cache-uniphier.o
 
 
-ifdef CONFIG_CC_CLOSE_OPTIMIZATION
-CFLAGS_fault.o	+= -O2
-CFLAGS_dma-mapping.o	+= -O2
-CFLAGS_flush.o	+= -O2
-endif

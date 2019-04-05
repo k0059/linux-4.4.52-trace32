@@ -160,13 +160,15 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
 #endif
 	flush_dcache_page(new);
 	set_pte_at(mm, addr, ptep, pte);
-
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	if (PageHuge(new)) {
 		if (PageAnon(new))
 			hugepage_add_anon_rmap(new, vma, addr);
 		else
 			page_dup_rmap(new);
-	} else if (PageAnon(new))
+	} else 
+#endif	
+	if (PageAnon(new))
 		page_add_anon_rmap(new, vma, addr);
 	else
 		page_add_file_rmap(new);

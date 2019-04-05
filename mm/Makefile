@@ -82,23 +82,3 @@ obj-$(CONFIG_USERFAULTFD) += userfaultfd.o
 obj-$(CONFIG_IDLE_PAGE_TRACKING) += page_idle.o
 obj-$(CONFIG_FRAME_VECTOR) += frame_vector.o
 
-ifdef CONFIG_CC_CLOSE_OPTIMIZATION
-CFLAGS_filemap.o	+= -O2
-CFLAGS_page_alloc.o	+= -O2
-CFLAGS_page-writeback.o	+= -O2
-CFLAGS_vmscan.o	+= -O2
-CFLAGS_shmem.o	+= -O2
-CFLAGS_list_lru.o	+= -O2
-CFLAGS_gup.o	+= -O2
-CFLAGS_memory.o	+= -O2
-CFLAGS_vmpressure.o	+= -O2
-CFLAGS_slub.o	+= -O2
-CFLAGS_zpool.o	+= -O2
-CFLAGS_memcontrol.o	+= -O2
-CFLAGS_mprotect.o	+= -O2
-CFLAGS_mremap.o	+= -O2
-CFLAGS_rmap.o	+= -O2
-CFLAGS_migrate.o	+= -O2
-CFLAGS_memory.o	+= -O2
-CFLAGS_mincore.o	+= -O2
-endif

@@ -230,6 +230,7 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
 	}
 	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
 		return no_page_table(vma, flags);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	if (pmd_trans_huge(*pmd)) {
 		if (flags & FOLL_SPLIT) {
 			split_huge_page_pmd(vma, address, pmd);
@@ -250,6 +251,7 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
 		} else
 			spin_unlock(ptl);
 	}
+#endif
 	return follow_page_pte(vma, address, pmd, flags);
 }
 

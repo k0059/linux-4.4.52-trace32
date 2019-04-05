@@ -1001,6 +1001,7 @@ static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src
 	src_pmd = pmd_offset(src_pud, addr);
 	do {
 		next = pmd_addr_end(addr, end);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 		if (pmd_trans_huge(*src_pmd)) {
 			int err;
 			VM_BUG_ON(next-addr != HPAGE_PMD_SIZE);
@@ -1012,6 +1013,7 @@ static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src
 				continue;
 			/* fall through */
 		}
+#endif
 		if (pmd_none_or_clear_bad(src_pmd))
 			continue;
 		if (copy_pte_range(dst_mm, src_mm, dst_pmd, src_pmd,
@@ -1233,6 +1235,7 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
 	pmd = pmd_offset(pud, addr);
 	do {
 		next = pmd_addr_end(addr, end);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 		if (pmd_trans_huge(*pmd)) {
 			if (next - addr != HPAGE_PMD_SIZE) {
 #ifdef CONFIG_DEBUG_VM
@@ -1249,6 +1252,7 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
 				goto next;
 			/* fall through */
 		}
+#endif
 		/*
 		 * Here there can be other concurrent MADV_DONTNEED or
 		 * trans huge page faults running, and if the pmd is
@@ -3271,7 +3275,7 @@ out:
 		task_numa_fault(last_cpupid, page_nid, 1, flags);
 	return 0;
 }
-
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static int create_huge_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, pmd_t *pmd, unsigned int flags)
 {
@@ -3292,7 +3296,7 @@ static int wp_huge_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 		return vma->vm_ops->pmd_fault(vma, address, pmd, flags);
 	return VM_FAULT_FALLBACK;
 }
-
+#endif
 /*
  * These routines also need to handle stuff like marking pages dirty
  * and/or accessed for architectures that don't do it in hardware (most
@@ -3394,6 +3398,7 @@ static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	pmd = pmd_alloc(mm, pud, address);
 	if (!pmd)
 		return VM_FAULT_OOM;
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	if (pmd_none(*pmd) && transparent_hugepage_enabled(vma)) {
 		int ret = create_huge_pmd(mm, vma, address, pmd, flags);
 		if (!(ret & VM_FAULT_FALLBACK))
@@ -3430,7 +3435,7 @@ static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			}
 		}
 	}
-
+#endif
 	/*
 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
 	 * run pte_offset_map on the pmd, if an huge pmd could

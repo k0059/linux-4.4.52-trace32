@@ -157,7 +157,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
 			mni_start = addr;
 			mmu_notifier_invalidate_range_start(mm, mni_start, end);
 		}
-
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 		if (pmd_trans_huge(*pmd)) {
 			if (next - addr != HPAGE_PMD_SIZE)
 				split_huge_page_pmd(vma, addr, pmd);
@@ -177,6 +177,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
 			}
 			/* fall through, the trans huge pmd just split */
 		}
+#endif
 		this_pages = change_pte_range(vma, pmd, addr, next, newprot,
 				 dirty_accountable, prot_numa);
 		pages += this_pages;
