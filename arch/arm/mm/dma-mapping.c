@@ -810,7 +810,7 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 		void *vaddr;
 
 		page = pfn_to_page(pfn);
-
+#ifdef CONFIG_HIGHMEM
 		if (PageHighMem(page)) {
 			if (len + offset > PAGE_SIZE)
 				len = PAGE_SIZE - offset;
@@ -826,7 +826,9 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 					kunmap_high(page);
 				}
 			}
-		} else {
+		} else 
+#endif
+		{
 			vaddr = page_address(page) + offset;
 			op(vaddr, len, dir);
 		}
